@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+release/
+target/
+.vite/
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Runtime / local data
+logs/
+*.log
+data/
+*.db
+*.sqlite
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
