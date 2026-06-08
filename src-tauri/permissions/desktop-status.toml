@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "desktop-status"
+description = "允许主窗口读取 HDX Desktop 运行状态和 capability 状态。"
+commands.allow = ["desktop_status", "capability_status"]

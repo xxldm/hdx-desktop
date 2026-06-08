@@ -1,6 +1,6 @@
 # Desktop 端
 
-本目录用于未来 desktop 客户端实现。当前仍未创建 Tauri 工程或引入运行时代码。
+本目录是 HDX Desktop 客户端工程，采用 Tauri + Rust + Vite + TypeScript。
 
 Desktop 第一阶段设计已由根仓库 `docs/adr/0008-desktop-tauri-windows-flavors.md` 记录：
 
@@ -12,4 +12,23 @@ Desktop 第一阶段设计已由根仓库 `docs/adr/0008-desktop-tauri-windows-f
 - 自启动、通知、deep link、托盘、配置目录和导入导出应抽象为可跨平台 capability。
 - 类似壁纸软件的桌面窗口嵌入是 Windows-only wallpaper mode，必须单独做 Win32 spike。
 
-本目录会作为独立 Git 仓库管理。后续创建 Tauri 工程、引入依赖、增加打包配置或实现 Win32 API 前，必须同步根仓库计划、ADR 和 `docs/ARCHITECTURE.md`。
+## 命令
+
+```powershell
+pnpm install
+pnpm run dev:local
+pnpm run dev:online
+pnpm run typecheck
+```
+
+当前骨架只提供只读状态面板和 capability 空壳。`dev:local` 与 `dev:online` 使用同一套代码，通过 Tauri 配置变体和 Rust feature 区分。
+
+## 当前边界
+
+- Local flavor 已在 Rust 状态中标记包含 all-in-one，但本轮尚未打包或启动真实 `backend-all-in-one`。
+- Online flavor 已在 Rust 状态中标记需要远端地址，但本轮尚未实现远端地址填写和持久化。
+- WebView 只调用 `desktop_status` 和 `capability_status` 两个只读 Tauri command。
+- 本机 token 当前不存在，也不得进入 WebView 浏览器代码。
+- Windows-only wallpaper mode 只保留 capability 位置，尚未调用 Win32 API。
+
+本目录会作为独立 Git 仓库管理。后续增加 sidecar、安装器、签名、自动更新或 Win32 API 前，必须同步根仓库计划、ADR 和 `docs/ARCHITECTURE.md`。

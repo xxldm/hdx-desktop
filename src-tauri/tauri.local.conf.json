@@ -1,0 +1,18 @@
+{
+  "productName": "HDX Desktop Local",
+  "identifier": "cn.hdx.desktop.local",
+  "mainBinaryName": "hdx-desktop-local",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "HDX Desktop Local",
+        "width": 1100,
+        "height": 720,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "主窗口只暴露 Tauri 核心默认能力和 HDX Desktop 只读状态命令。",
+  "windows": ["main"],
+  "permissions": ["core:default", "desktop-status"]
+}
