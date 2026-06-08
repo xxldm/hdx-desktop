@@ -2,14 +2,14 @@
 
 本目录是 HDX Desktop 客户端工程，采用 Tauri + Rust + Vite + TypeScript。
 
-Desktop 第一阶段设计已由根仓库 `docs/adr/0008-desktop-tauri-windows-flavors.md` 记录：
+Desktop 第一阶段设计已由根仓库 `docs/adr/0008-desktop-tauri-windows-linux-flavors.md` 记录：
 
-- 技术栈采用 Tauri + Rust，首版 Windows first。
+- 技术栈采用 Tauri + Rust，第一阶段 Windows + Linux 并列。
 - `apps/desktop` 只维护一套代码，不拆成 Local/Online 两套项目。
 - Local/Online 通过构建 flavor、Tauri 配置变体和安装包内容区分。
 - `HDX Desktop Local` 包含 `backend-all-in-one` sidecar/native exe，仅离线本地模式。
 - `HDX Desktop Online` 不包含 all-in-one，仅在线远程模式。
-- 自启动、通知、deep link、托盘、配置目录和导入导出应抽象为可跨平台 capability。
+- 自启动、通知、deep link、托盘、配置目录和导入导出应抽象为 Windows/Linux 通用 desktop capability。
 - 类似壁纸软件的桌面窗口嵌入是 Windows-only wallpaper mode，必须单独做 Win32 spike。
 
 ## 命令
