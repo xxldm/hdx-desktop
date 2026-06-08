@@ -3,6 +3,7 @@ use serde::Serialize;
 #[cfg(all(feature = "flavor-local", feature = "flavor-online"))]
 compile_error!("只能启用一个 Desktop flavor feature：flavor-local 或 flavor-online。");
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DesktopFlavor {

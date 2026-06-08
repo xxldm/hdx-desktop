@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-capability-status"
+description = "Enables the capability_status command without any pre-configured scope."
+commands.allow = ["capability_status"]
+
+[[permission]]
+identifier = "deny-capability-status"
+description = "Denies the capability_status command without any pre-configured scope."
+commands.deny = ["capability_status"]
