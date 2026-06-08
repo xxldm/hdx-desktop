@@ -1,0 +1,15 @@
+HDX Desktop
+Copyright 2026 HDX contributors.
+
+This repository is licensed under the Apache License, Version 2.0, except
+for files, dependencies, generated artifacts, submodules, or external
+repositories that carry their own license notices.
+
+The HDX name, logos, icons, and official release marks are project branding.
+The Apache License does not grant permission to use them in a confusing or
+official-looking way.
+
+The private HDX backend source code, backend binaries, backend native
+archives, Spring Boot JAR/WAR artifacts, and backend build intermediates are
+not part of this Desktop repository license unless explicitly stated by their
+own repository or accompanying binary notice.
