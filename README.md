@@ -25,6 +25,8 @@ pnpm run typecheck
 
 Windows NSIS 安装包已配置简体中文和英文，并显示安装器语言选择器。Windows 安装包默认当前用户安装，并通过 WebView2 bootstrapper 检查和引导安装 WebView2 Runtime。
 
+Tauri `productName` 使用 `.` 连接，`mainBinaryName` 使用 `-` 连接，避免 Tauri 默认输出文件名包含空格；用户可见窗口标题仍保留正常空格。
+
 第一版正式 Release 需要同时提供 Online 和 Full。Windows 发布 NSIS 安装包和绿色 zip 包，Release asset 文件名统一使用无空格命名；Linux 第一版优先发布 AppImage。首版允许未签名，但需要在 release notes 中提示 Windows SmartScreen 或系统安全提示风险。
 
 Desktop 当前没有 Web 端那种部署配置模板。客户端运行配置建议由应用首启/设置页写入用户级 app config，并由 Rust 侧做 schema 校验；绿色包也使用同一用户级配置位置，不在 zip 根目录维护另一套配置。
