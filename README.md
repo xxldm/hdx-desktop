@@ -23,6 +23,8 @@ pnpm run typecheck
 
 当前骨架只提供只读状态面板和 capability 空壳。`dev:local` 与 `dev:online` 使用同一套代码，通过 Tauri 配置变体和 Rust feature 区分。
 
+Windows NSIS 安装包已配置简体中文和英文，并显示安装器语言选择器。当前安装包仍未签名；正式发布前需要确定安装包与绿色包的命名、内容和上传边界。
+
 ## 当前边界
 
 - Local flavor 已在 Rust 状态中标记包含 all-in-one，但本轮尚未打包或启动真实 `backend-all-in-one`。
