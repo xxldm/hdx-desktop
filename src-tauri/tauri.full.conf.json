@@ -1,12 +1,12 @@
 {
-  "productName": "HDX.Desktop.Local",
-  "identifier": "cn.hdx.desktop.local",
-  "mainBinaryName": "HDX Desktop Local",
+  "productName": "HDX.Desktop.Full",
+  "identifier": "cn.hdx.desktop.full",
+  "mainBinaryName": "HDX Desktop Full",
   "app": {
     "windows": [
       {
         "label": "main",
-        "title": "HDX Desktop Local",
+        "title": "HDX Desktop Full",
         "width": 1100,
         "height": 720,
         "minWidth": 900,

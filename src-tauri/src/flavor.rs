@@ -1,21 +1,21 @@
 use serde::Serialize;
 
-#[cfg(all(feature = "flavor-local", feature = "flavor-online"))]
-compile_error!("只能启用一个 Desktop flavor feature：flavor-local 或 flavor-online。");
+#[cfg(all(feature = "flavor-full", feature = "flavor-online"))]
+compile_error!("只能启用一个 Desktop flavor feature：flavor-full 或 flavor-online。");
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DesktopFlavor {
-    Local,
+    Full,
     Online,
     Unspecified,
 }
 
 pub fn active_flavor() -> DesktopFlavor {
-    #[cfg(feature = "flavor-local")]
+    #[cfg(feature = "flavor-full")]
     {
-        return DesktopFlavor::Local;
+        return DesktopFlavor::Full;
     }
 
     #[cfg(feature = "flavor-online")]
@@ -23,7 +23,7 @@ pub fn active_flavor() -> DesktopFlavor {
         return DesktopFlavor::Online;
     }
 
-    #[cfg(not(any(feature = "flavor-local", feature = "flavor-online")))]
+    #[cfg(not(any(feature = "flavor-full", feature = "flavor-online")))]
     {
         DesktopFlavor::Unspecified
     }
@@ -32,7 +32,7 @@ pub fn active_flavor() -> DesktopFlavor {
 impl DesktopFlavor {
     pub fn label(self) -> &'static str {
         match self {
-            DesktopFlavor::Local => "Local",
+            DesktopFlavor::Full => "Full",
             DesktopFlavor::Online => "Online",
             DesktopFlavor::Unspecified => "未指定",
         }
@@ -40,14 +40,14 @@ impl DesktopFlavor {
 
     pub fn product_name(self) -> &'static str {
         match self {
-            DesktopFlavor::Local => "HDX Desktop Local",
+            DesktopFlavor::Full => "HDX Desktop Full",
             DesktopFlavor::Online => "HDX Desktop Online",
             DesktopFlavor::Unspecified => "HDX Desktop",
         }
     }
 
-    pub fn includes_all_in_one(self) -> bool {
-        matches!(self, DesktopFlavor::Local)
+    pub fn includes_full_backend(self) -> bool {
+        matches!(self, DesktopFlavor::Full)
     }
 
     pub fn remote_endpoint_required(self) -> bool {
@@ -56,7 +56,7 @@ impl DesktopFlavor {
 
     pub fn local_actor(self) -> Option<&'static str> {
         match self {
-            DesktopFlavor::Local => Some("LOCAL_ADMIN:local-admin"),
+            DesktopFlavor::Full => Some("LOCAL_ADMIN:local-admin"),
             DesktopFlavor::Online | DesktopFlavor::Unspecified => None,
         }
     }

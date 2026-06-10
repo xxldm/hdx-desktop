@@ -8,7 +8,7 @@ use crate::platform;
 pub enum CapabilityScope {
     CrossPlatform,
     WindowsOnly,
-    FlavorLocal,
+    FlavorFull,
     FlavorOnline,
 }
 
@@ -52,16 +52,16 @@ pub fn collect(flavor: DesktopFlavor) -> Vec<CapabilityStatus> {
     if !matches!(flavor, DesktopFlavor::Online) {
         capabilities.push(CapabilityStatus {
             id: "local-backend-sidecar",
-            name: "本机 all-in-one",
-            scope: CapabilityScope::FlavorLocal,
-            platform: "local-flavor",
+            name: "Full 本机后端",
+            scope: CapabilityScope::FlavorFull,
+            platform: "full-flavor",
             state: CapabilityState::Planned,
             webview_exposure: WebviewExposure::None,
-            description: "仅 Local flavor 后续包含和启动 backend-all-in-one。",
+            description: "仅 Full flavor 后续包含和启动本机后端 sidecar。",
         });
     }
 
-    if !matches!(flavor, DesktopFlavor::Local) {
+    if !matches!(flavor, DesktopFlavor::Full) {
         capabilities.push(CapabilityStatus {
             id: "remote-endpoint",
             name: "远端地址",

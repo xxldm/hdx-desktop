@@ -8,9 +8,9 @@
   "scripts": {
     "dev:web": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "build:web": "vite build",
-    "dev:local": "tauri dev --config src-tauri/tauri.local.conf.json --features flavor-local",
+    "dev:full": "tauri dev --config src-tauri/tauri.full.conf.json --features flavor-full",
     "dev:online": "tauri dev --config src-tauri/tauri.online.conf.json --features flavor-online",
-    "build:local": "tauri build --config src-tauri/tauri.local.conf.json --features flavor-local",
+    "build:full": "tauri build --config src-tauri/tauri.full.conf.json --features flavor-full",
     "build:online": "tauri build --config src-tauri/tauri.online.conf.json --features flavor-online",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"

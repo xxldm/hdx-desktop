@@ -20,5 +20,5 @@ tauri = { version = "2.11.2", features = [] }
 
 [features]
 default = []
-flavor-local = []
+flavor-full = []
 flavor-online = []

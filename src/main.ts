@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import "./styles.css";
 
-type DesktopFlavor = "local" | "online" | "unspecified";
+type DesktopFlavor = "full" | "online" | "unspecified";
 
 type CapabilityStatus = {
   id: string;
   name: string;
-  scope: "cross-platform" | "windows-only" | "flavor-local" | "flavor-online";
+  scope: "cross-platform" | "windows-only" | "flavor-full" | "flavor-online";
   platform: string;
   state: "stub" | "planned" | "not-supported";
   webviewExposure: "command-only" | "none";
@@ -18,7 +18,7 @@ type DesktopStatus = {
   flavorLabel: string;
   productName: string;
   platform: string;
-  includesAllInOne: boolean;
+  includesFullBackend: boolean;
   remoteEndpointRequired: boolean;
   localActor: string | null;
   localTokenExposedToWebview: boolean;
@@ -69,8 +69,8 @@ function renderStatus(status: DesktopStatus): void {
           <strong>${status.platform}</strong>
         </div>
         <div class="metric">
-          <span class="metric-label">包含 all-in-one</span>
-          <strong>${formatBoolean(status.includesAllInOne)}</strong>
+          <span class="metric-label">包含本机后端</span>
+          <strong>${formatBoolean(status.includesFullBackend)}</strong>
         </div>
         <div class="metric">
           <span class="metric-label">需要远端地址</span>
