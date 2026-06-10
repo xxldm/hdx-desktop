@@ -30,7 +30,12 @@
     "active": false,
     "targets": "all",
     "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper",
+        "silent": false
+      },
       "nsis": {
+        "installMode": "currentUser",
         "languages": ["SimpChinese", "English"],
         "displayLanguageSelector": true
       }
