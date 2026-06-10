@@ -3,7 +3,7 @@
   "productName": "HDX.Desktop",
   "version": "0.1.0",
   "identifier": "cn.hdx.desktop",
-  "mainBinaryName": "hdx-desktop",
+  "mainBinaryName": "HDX Desktop",
   "build": {
     "beforeDevCommand": "pnpm run dev:web",
     "devUrl": "http://127.0.0.1:1420",

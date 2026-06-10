@@ -1,7 +1,7 @@
 {
   "productName": "HDX.Desktop.Online",
   "identifier": "cn.hdx.desktop.online",
-  "mainBinaryName": "hdx-desktop-online",
+  "mainBinaryName": "HDX Desktop Online",
   "app": {
     "windows": [
       {

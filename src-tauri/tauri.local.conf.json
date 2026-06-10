@@ -1,7 +1,7 @@
 {
   "productName": "HDX.Desktop.Local",
   "identifier": "cn.hdx.desktop.local",
-  "mainBinaryName": "hdx-desktop-local",
+  "mainBinaryName": "HDX Desktop Local",
   "app": {
     "windows": [
       {
