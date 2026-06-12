@@ -21,7 +21,7 @@ pnpm run dev:online
 pnpm run typecheck
 ```
 
-当前骨架只提供只读状态面板和 capability 空壳。`dev:full` 与 `dev:online` 使用同一套代码，通过 Tauri 配置变体和 Rust feature 区分。
+当前骨架提供只读状态面板、capability 状态和 Full 本机后端 sidecar 最小启动闭环。`dev:full` 与 `dev:online` 使用同一套代码，通过 Tauri 配置变体和 Rust feature 区分。
 
 Windows NSIS 安装包已配置简体中文和英文，并显示安装器语言选择器。Windows 安装包默认当前用户安装，并通过 WebView2 bootstrapper 检查和引导安装 WebView2 Runtime。
 
@@ -33,10 +33,11 @@ Desktop 当前没有 Web 端那种部署配置模板。客户端运行配置建�
 
 ## 当前边界
 
-- Full flavor 已在 Rust 状态中标记包含本机后端，但本轮尚未打包或启动真实 `backend-all-in-one`。
+- Full flavor 会从 Tauri resource 的 `backend/` 目录复制已解压 `backend-full` 到用户数据目录，启动本机 `backend-all-in-one`，轮询 `/actuator/health`，再读取 `/local/session`。
+- `backend-build.json` 仍记录原始 `backend-full` Release archive 的文件名、sha256、后端 commit 和 entrypoint；运行时不解析 zip/tar archive。
+- 本机 token 只保存在 Rust 主进程状态中，状态面板只显示本机会话是否就绪，不返回 token 或 header。
 - Online flavor 已在 Rust 状态中标记需要远端地址，但本轮尚未实现远端地址填写和持久化。
 - WebView 只调用 `desktop_status` 和 `capability_status` 两个只读 Tauri command。
-- 本机 token 当前不存在，也不得进入 WebView 浏览器代码。
 - Windows-only wallpaper mode 只保留 capability 位置，尚未调用 Win32 API。
 
 本目录会作为独立 Git 仓库管理。后续增加 sidecar、安装器、签名、自动更新或 Win32 API 前，必须同步根仓库计划、ADR 和 `docs/ARCHITECTURE.md`。

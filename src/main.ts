@@ -8,9 +8,20 @@ type CapabilityStatus = {
   name: string;
   scope: "cross-platform" | "windows-only" | "flavor-full" | "flavor-online";
   platform: string;
-  state: "stub" | "planned" | "not-supported";
+  state: "ready" | "stub" | "planned" | "not-supported";
   webviewExposure: "command-only" | "none";
   description: string;
+};
+
+type BackendSidecarStatus = {
+  state: "not-applicable" | "missing-resource" | "starting" | "running" | "failed" | "stopped";
+  baseUrl: string | null;
+  healthCheckUrl: string | null;
+  localSessionReady: boolean;
+  localTokenExposedToWebview: boolean;
+  executablePath: string | null;
+  dataDir: string | null;
+  message: string | null;
 };
 
 type DesktopStatus = {
@@ -22,6 +33,7 @@ type DesktopStatus = {
   remoteEndpointRequired: boolean;
   localActor: string | null;
   localTokenExposedToWebview: boolean;
+  backendSidecar: BackendSidecarStatus;
   capabilities: CapabilityStatus[];
   boundaryNotes: string[];
 };
@@ -40,12 +52,31 @@ function formatBoolean(value: boolean): string {
 
 function stateText(state: CapabilityStatus["state"]): string {
   switch (state) {
+    case "ready":
+      return "可用";
     case "stub":
       return "空壳";
     case "planned":
       return "待实现";
     case "not-supported":
       return "不支持";
+  }
+}
+
+function sidecarStateText(state: BackendSidecarStatus["state"]): string {
+  switch (state) {
+    case "not-applicable":
+      return "不适用";
+    case "missing-resource":
+      return "缺少资源";
+    case "starting":
+      return "启动中";
+    case "running":
+      return "运行中";
+    case "failed":
+      return "失败";
+    case "stopped":
+      return "已停止";
   }
 }
 
@@ -84,6 +115,47 @@ function renderStatus(status: DesktopStatus): void {
           <span class="metric-label">WebView 持有本机 token</span>
           <strong>${formatBoolean(status.localTokenExposedToWebview)}</strong>
         </div>
+        <div class="metric">
+          <span class="metric-label">本机后端</span>
+          <strong>${sidecarStateText(status.backendSidecar.state)}</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">本机会话</span>
+          <strong>${formatBoolean(status.backendSidecar.localSessionReady)}</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Sidecar token 暴露</span>
+          <strong>${formatBoolean(status.backendSidecar.localTokenExposedToWebview)}</strong>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="本机后端">
+        <div class="panel-heading">
+          <h2>本机后端</h2>
+          <span>${sidecarStateText(status.backendSidecar.state)}</span>
+        </div>
+        <dl>
+          <div>
+            <dt>服务地址</dt>
+            <dd>${status.backendSidecar.baseUrl ?? "无"}</dd>
+          </div>
+          <div>
+            <dt>健康检查</dt>
+            <dd>${status.backendSidecar.healthCheckUrl ?? "无"}</dd>
+          </div>
+          <div>
+            <dt>可执行文件</dt>
+            <dd>${status.backendSidecar.executablePath ?? "无"}</dd>
+          </div>
+          <div>
+            <dt>数据目录</dt>
+            <dd>${status.backendSidecar.dataDir ?? "无"}</dd>
+          </div>
+          <div class="wide">
+            <dt>状态说明</dt>
+            <dd>${status.backendSidecar.message ?? "无"}</dd>
+          </div>
+        </dl>
       </section>
 
       <section class="panel" aria-label="能力状态">

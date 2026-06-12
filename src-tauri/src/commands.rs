@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::capabilities::{self, CapabilityStatus};
 use crate::flavor::{self, DesktopFlavor};
 use crate::platform;
+use crate::sidecar::{BackendSidecar, BackendSidecarStatus};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,12 +16,13 @@ pub struct DesktopStatus {
     pub remote_endpoint_required: bool,
     pub local_actor: Option<&'static str>,
     pub local_token_exposed_to_webview: bool,
+    pub backend_sidecar: BackendSidecarStatus,
     pub capabilities: Vec<CapabilityStatus>,
     pub boundary_notes: Vec<&'static str>,
 }
 
 impl DesktopStatus {
-    pub fn current() -> Self {
+    pub fn current(backend_sidecar: BackendSidecarStatus) -> Self {
         let flavor = flavor::active_flavor();
 
         Self {
@@ -32,6 +34,7 @@ impl DesktopStatus {
             remote_endpoint_required: flavor.remote_endpoint_required(),
             local_actor: flavor.local_actor(),
             local_token_exposed_to_webview: false,
+            backend_sidecar,
             capabilities: capabilities::collect(flavor),
             boundary_notes: vec![
                 "Full/Online 是构建 flavor，不是两套代码。",
@@ -44,8 +47,8 @@ impl DesktopStatus {
 }
 
 #[tauri::command]
-pub fn desktop_status() -> DesktopStatus {
-    DesktopStatus::current()
+pub fn desktop_status(backend_sidecar: tauri::State<'_, BackendSidecar>) -> DesktopStatus {
+    DesktopStatus::current(backend_sidecar.snapshot())
 }
 
 #[tauri::command]
@@ -59,8 +62,9 @@ mod tests {
 
     #[test]
     fn desktop_status_never_exposes_local_token_to_webview() {
-        let status = DesktopStatus::current();
+        let status = DesktopStatus::current(BackendSidecarStatus::not_applicable());
 
         assert!(!status.local_token_exposed_to_webview);
+        assert!(!status.backend_sidecar.local_token_exposed_to_webview);
     }
 }

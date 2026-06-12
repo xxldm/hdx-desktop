@@ -15,6 +15,7 @@ pub enum CapabilityScope {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CapabilityState {
+    Ready,
     Stub,
     Planned,
     NotSupported,
@@ -43,7 +44,11 @@ pub fn collect(flavor: DesktopFlavor) -> Vec<CapabilityStatus> {
     let mut capabilities = vec![
         cross_platform("autostart", "自启动", "预留跨平台自启动 capability。"),
         cross_platform("notifications", "通知", "预留跨平台通知 capability。"),
-        cross_platform("deep-link", "URL 注册", "预留 deep link 与 URL scheme capability。"),
+        cross_platform(
+            "deep-link",
+            "URL 注册",
+            "预留 deep link 与 URL scheme capability。",
+        ),
         cross_platform("tray", "托盘", "预留系统托盘 capability。"),
         cross_platform("config-dir", "配置目录", "预留平台配置目录 capability。"),
         cross_platform("import-export", "导入导出", "预留手动迁移数据 capability。"),
@@ -55,9 +60,9 @@ pub fn collect(flavor: DesktopFlavor) -> Vec<CapabilityStatus> {
             name: "Full 本机后端",
             scope: CapabilityScope::FlavorFull,
             platform: "full-flavor",
-            state: CapabilityState::Planned,
+            state: CapabilityState::Ready,
             webview_exposure: WebviewExposure::None,
-            description: "仅 Full flavor 后续包含和启动本机后端 sidecar。",
+            description: "Full flavor 会启动本机后端 sidecar，token 不暴露给 WebView。",
         });
     }
 

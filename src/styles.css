@@ -173,6 +173,10 @@ dl {
   margin: 0;
 }
 
+dl .wide {
+  grid-column: 1 / -1;
+}
+
 dt {
   color: #596579;
   font-size: 0.76rem;
