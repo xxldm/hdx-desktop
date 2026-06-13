@@ -64,6 +64,15 @@ pub fn collect(flavor: DesktopFlavor) -> Vec<CapabilityStatus> {
             webview_exposure: WebviewExposure::None,
             description: "Full flavor 会启动本机后端 sidecar，token 不暴露给 WebView。",
         });
+        capabilities.push(CapabilityStatus {
+            id: "local-web-server",
+            name: "Full 本机 Web",
+            scope: CapabilityScope::FlavorFull,
+            platform: "full-flavor",
+            state: CapabilityState::Ready,
+            webview_exposure: WebviewExposure::None,
+            description: "Full flavor 通过受控 Web/Nuxt server 注入本机 token。",
+        });
     }
 
     if !matches!(flavor, DesktopFlavor::Full) {

@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File},
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
     path::{Component, Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{Arc, Mutex},
@@ -10,7 +8,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-const LOCAL_HOST: &str = "127.0.0.1";
+use crate::local_http::{http_get, reserve_local_port, LOCAL_HOST};
+
 const HEALTH_PATH: &str = "/actuator/health";
 const LOCAL_SESSION_PATH: &str = "/local/session";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
@@ -70,6 +69,13 @@ struct BackendSidecarInner {
 struct LocalSession {
     header_name: String,
     token: String,
+}
+
+#[derive(Clone)]
+pub struct LocalBackendSession {
+    pub base_url: String,
+    pub header_name: String,
+    pub token: String,
 }
 
 #[derive(Deserialize)]
@@ -198,6 +204,22 @@ impl BackendSidecar {
             .status
             .clone()
             .unwrap_or_else(BackendSidecarStatus::not_applicable)
+    }
+
+    pub fn local_backend_session(&self) -> Option<LocalBackendSession> {
+        let inner = self.lock_inner();
+        let status = inner.status.as_ref()?;
+
+        if !matches!(status.state, BackendSidecarState::Running) {
+            return None;
+        }
+
+        let session = inner.local_session.as_ref()?;
+        Some(LocalBackendSession {
+            base_url: status.base_url.clone()?,
+            header_name: session.header_name.clone(),
+            token: session.token.clone(),
+        })
     }
 
     fn start_blocking(
@@ -433,17 +455,6 @@ fn create_log_file(data_dir: &Path, name: &str) -> Result<File, String> {
     File::create(log_dir.join(name)).map_err(|error| format!("创建本机后端日志文件失败：{error}"))
 }
 
-fn reserve_local_port() -> Result<u16, String> {
-    let listener = TcpListener::bind((LOCAL_HOST, 0))
-        .map_err(|error| format!("分配本机后端端口失败：{error}"))?;
-    let port = listener
-        .local_addr()
-        .map_err(|error| format!("读取本机后端端口失败：{error}"))?
-        .port();
-    drop(listener);
-    Ok(port)
-}
-
 fn wait_for_health(port: u16) -> Result<(), String> {
     let deadline = Instant::now() + STARTUP_TIMEOUT;
     let mut last_error = String::new();
@@ -482,101 +493,6 @@ fn fetch_local_session(port: u16) -> Result<LocalSessionResponse, String> {
         return Err("本机会话返回的 token 信息无效。".to_string());
     }
     Ok(session)
-}
-
-struct HttpResponse {
-    status_code: u16,
-    body: String,
-}
-
-fn http_get(port: u16, path: &str) -> Result<HttpResponse, String> {
-    let mut stream = TcpStream::connect((LOCAL_HOST, port))
-        .map_err(|error| format!("连接本机后端失败：{error}"))?;
-    stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
-        .map_err(|error| format!("设置本机后端读取超时失败：{error}"))?;
-    stream
-        .set_write_timeout(Some(Duration::from_secs(5)))
-        .map_err(|error| format!("设置本机后端写入超时失败：{error}"))?;
-
-    let request = format!(
-        "GET {path} HTTP/1.1\r\nHost: {LOCAL_HOST}:{port}\r\nConnection: close\r\nAccept: application/json\r\n\r\n"
-    );
-    stream
-        .write_all(request.as_bytes())
-        .map_err(|error| format!("发送本机后端请求失败：{error}"))?;
-
-    let mut response = Vec::new();
-    stream
-        .read_to_end(&mut response)
-        .map_err(|error| format!("读取本机后端响应失败：{error}"))?;
-    parse_http_response(&response)
-}
-
-fn parse_http_response(response: &[u8]) -> Result<HttpResponse, String> {
-    let header_end = response
-        .windows(4)
-        .position(|window| window == b"\r\n\r\n")
-        .ok_or_else(|| "本机后端响应缺少 HTTP header。".to_string())?;
-    let headers = String::from_utf8_lossy(&response[..header_end]);
-    let status_line = headers
-        .lines()
-        .next()
-        .ok_or_else(|| "本机后端响应缺少状态行。".to_string())?;
-    let status_code = status_line
-        .split_whitespace()
-        .nth(1)
-        .ok_or_else(|| "本机后端响应状态行无效。".to_string())?
-        .parse::<u16>()
-        .map_err(|error| format!("解析本机后端 HTTP 状态失败：{error}"))?;
-    let mut body = response[header_end + 4..].to_vec();
-
-    if headers
-        .to_ascii_lowercase()
-        .contains("transfer-encoding: chunked")
-    {
-        body = decode_chunked_body(&body)?;
-    }
-
-    let body =
-        String::from_utf8(body).map_err(|error| format!("本机后端响应不是 UTF-8：{error}"))?;
-    Ok(HttpResponse { status_code, body })
-}
-
-fn decode_chunked_body(body: &[u8]) -> Result<Vec<u8>, String> {
-    let mut cursor = 0;
-    let mut decoded = Vec::new();
-
-    loop {
-        let line_end =
-            find_crlf(body, cursor).ok_or_else(|| "chunked 响应缺少长度行。".to_string())?;
-        let size_line = String::from_utf8_lossy(&body[cursor..line_end]);
-        let size_hex = size_line.split(';').next().unwrap_or("").trim();
-        let size = usize::from_str_radix(size_hex, 16)
-            .map_err(|error| format!("解析 chunked 响应长度失败：{error}"))?;
-        cursor = line_end + 2;
-
-        if size == 0 {
-            break;
-        }
-
-        let chunk_end = cursor + size;
-        if chunk_end > body.len() {
-            return Err("chunked 响应正文长度不足。".to_string());
-        }
-        decoded.extend_from_slice(&body[cursor..chunk_end]);
-        cursor = chunk_end + 2;
-    }
-
-    Ok(decoded)
-}
-
-fn find_crlf(bytes: &[u8], start: usize) -> Option<usize> {
-    bytes
-        .get(start..)?
-        .windows(2)
-        .position(|window| window == b"\r\n")
-        .map(|position| start + position)
 }
 
 fn sanitize_path_segment(value: &str) -> String {

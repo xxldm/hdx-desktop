@@ -2,6 +2,7 @@ use serde::Serialize;
 
 use crate::capabilities::{self, CapabilityStatus};
 use crate::flavor::{self, DesktopFlavor};
+use crate::local_web::{LocalWebServer, LocalWebServerStatus};
 use crate::platform;
 use crate::sidecar::{BackendSidecar, BackendSidecarStatus};
 
@@ -17,12 +18,16 @@ pub struct DesktopStatus {
     pub local_actor: Option<&'static str>,
     pub local_token_exposed_to_webview: bool,
     pub backend_sidecar: BackendSidecarStatus,
+    pub local_web_server: LocalWebServerStatus,
     pub capabilities: Vec<CapabilityStatus>,
     pub boundary_notes: Vec<&'static str>,
 }
 
 impl DesktopStatus {
-    pub fn current(backend_sidecar: BackendSidecarStatus) -> Self {
+    pub fn current(
+        backend_sidecar: BackendSidecarStatus,
+        local_web_server: LocalWebServerStatus,
+    ) -> Self {
         let flavor = flavor::active_flavor();
 
         Self {
@@ -35,6 +40,7 @@ impl DesktopStatus {
             local_actor: flavor.local_actor(),
             local_token_exposed_to_webview: false,
             backend_sidecar,
+            local_web_server,
             capabilities: capabilities::collect(flavor),
             boundary_notes: vec![
                 "Full/Online 是构建 flavor，不是两套代码。",
@@ -47,8 +53,11 @@ impl DesktopStatus {
 }
 
 #[tauri::command]
-pub fn desktop_status(backend_sidecar: tauri::State<'_, BackendSidecar>) -> DesktopStatus {
-    DesktopStatus::current(backend_sidecar.snapshot())
+pub fn desktop_status(
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+    local_web_server: tauri::State<'_, LocalWebServer>,
+) -> DesktopStatus {
+    DesktopStatus::current(backend_sidecar.snapshot(), local_web_server.snapshot())
 }
 
 #[tauri::command]
@@ -62,9 +71,13 @@ mod tests {
 
     #[test]
     fn desktop_status_never_exposes_local_token_to_webview() {
-        let status = DesktopStatus::current(BackendSidecarStatus::not_applicable());
+        let status = DesktopStatus::current(
+            BackendSidecarStatus::not_applicable(),
+            LocalWebServerStatus::not_applicable(),
+        );
 
         assert!(!status.local_token_exposed_to_webview);
         assert!(!status.backend_sidecar.local_token_exposed_to_webview);
+        assert!(!status.local_web_server.local_token_exposed_to_webview);
     }
 }

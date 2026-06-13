@@ -24,6 +24,24 @@ type BackendSidecarStatus = {
   message: string | null;
 };
 
+type LocalWebServerStatus = {
+  state:
+    | "not-applicable"
+    | "missing-resource"
+    | "waiting-for-backend"
+    | "starting"
+    | "running"
+    | "failed"
+    | "stopped";
+  baseUrl: string | null;
+  sessionProbeUrl: string | null;
+  localBackendReady: boolean;
+  localTokenExposedToWebview: boolean;
+  webRoot: string | null;
+  dataDir: string | null;
+  message: string | null;
+};
+
 type DesktopStatus = {
   flavor: DesktopFlavor;
   flavorLabel: string;
@@ -34,11 +52,13 @@ type DesktopStatus = {
   localActor: string | null;
   localTokenExposedToWebview: boolean;
   backendSidecar: BackendSidecarStatus;
+  localWebServer: LocalWebServerStatus;
   capabilities: CapabilityStatus[];
   boundaryNotes: string[];
 };
 
 const app = document.querySelector<HTMLDivElement>("#app");
+let redirectedToLocalWeb = false;
 
 if (!app) {
   throw new Error("缺少应用挂载节点。");
@@ -80,7 +100,37 @@ function sidecarStateText(state: BackendSidecarStatus["state"]): string {
   }
 }
 
+function localWebStateText(state: LocalWebServerStatus["state"]): string {
+  switch (state) {
+    case "not-applicable":
+      return "不适用";
+    case "missing-resource":
+      return "缺少资源";
+    case "waiting-for-backend":
+      return "等待后端";
+    case "starting":
+      return "启动中";
+    case "running":
+      return "运行中";
+    case "failed":
+      return "失败";
+    case "stopped":
+      return "已停止";
+  }
+}
+
 function renderStatus(status: DesktopStatus): void {
+  if (
+    !redirectedToLocalWeb &&
+    status.flavor === "full" &&
+    status.localWebServer.state === "running" &&
+    status.localWebServer.baseUrl
+  ) {
+    redirectedToLocalWeb = true;
+    window.location.replace(status.localWebServer.baseUrl);
+    return;
+  }
+
   appRoot.innerHTML = `
     <header class="topbar">
       <div>
@@ -127,6 +177,14 @@ function renderStatus(status: DesktopStatus): void {
           <span class="metric-label">Sidecar token 暴露</span>
           <strong>${formatBoolean(status.backendSidecar.localTokenExposedToWebview)}</strong>
         </div>
+        <div class="metric">
+          <span class="metric-label">本机 Web</span>
+          <strong>${localWebStateText(status.localWebServer.state)}</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Web token 暴露</span>
+          <strong>${formatBoolean(status.localWebServer.localTokenExposedToWebview)}</strong>
+        </div>
       </section>
 
       <section class="panel" aria-label="本机后端">
@@ -154,6 +212,39 @@ function renderStatus(status: DesktopStatus): void {
           <div class="wide">
             <dt>状态说明</dt>
             <dd>${status.backendSidecar.message ?? "无"}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel" aria-label="本机 Web">
+        <div class="panel-heading">
+          <h2>本机 Web</h2>
+          <span>${localWebStateText(status.localWebServer.state)}</span>
+        </div>
+        <dl>
+          <div>
+            <dt>服务地址</dt>
+            <dd>${status.localWebServer.baseUrl ?? "无"}</dd>
+          </div>
+          <div>
+            <dt>会话探测</dt>
+            <dd>${status.localWebServer.sessionProbeUrl ?? "无"}</dd>
+          </div>
+          <div>
+            <dt>后端会话</dt>
+            <dd>${formatBoolean(status.localWebServer.localBackendReady)}</dd>
+          </div>
+          <div>
+            <dt>Web 根目录</dt>
+            <dd>${status.localWebServer.webRoot ?? "无"}</dd>
+          </div>
+          <div>
+            <dt>数据目录</dt>
+            <dd>${status.localWebServer.dataDir ?? "无"}</dd>
+          </div>
+          <div class="wide">
+            <dt>状态说明</dt>
+            <dd>${status.localWebServer.message ?? "无"}</dd>
           </div>
         </dl>
       </section>
