@@ -207,6 +207,24 @@
           "markdownDescription": "Enables the hdx_auth_session command without any pre-configured scope."
         },
         {
+          "description": "Enables the hdx_online_config_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-online-config-get",
+          "markdownDescription": "Enables the hdx_online_config_get command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_online_config_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-online-config-save",
+          "markdownDescription": "Enables the hdx_online_config_save command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_online_connection_check command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-online-connection-check",
+          "markdownDescription": "Enables the hdx_online_connection_check command without any pre-configured scope."
+        },
+        {
           "description": "Enables the hdx_runtime_info command without any pre-configured scope.",
           "type": "string",
           "const": "allow-hdx-runtime-info",
@@ -253,6 +271,24 @@
           "type": "string",
           "const": "deny-hdx-auth-session",
           "markdownDescription": "Denies the hdx_auth_session command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_online_config_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-online-config-get",
+          "markdownDescription": "Denies the hdx_online_config_get command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_online_config_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-online-config-save",
+          "markdownDescription": "Denies the hdx_online_config_save command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_online_connection_check command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-online-connection-check",
+          "markdownDescription": "Denies the hdx_online_connection_check command without any pre-configured scope."
         },
         {
           "description": "Denies the hdx_runtime_info command without any pre-configured scope.",

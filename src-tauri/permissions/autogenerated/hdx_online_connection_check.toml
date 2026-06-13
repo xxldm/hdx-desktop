@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hdx-online-connection-check"
+description = "Enables the hdx_online_connection_check command without any pre-configured scope."
+commands.allow = ["hdx_online_connection_check"]
+
+[[permission]]
+identifier = "deny-hdx-online-connection-check"
+description = "Denies the hdx_online_connection_check command without any pre-configured scope."
+commands.deny = ["hdx_online_connection_check"]

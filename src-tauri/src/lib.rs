@@ -3,6 +3,7 @@ mod capabilities;
 mod commands;
 mod flavor;
 mod local_http;
+mod online_config;
 mod platform;
 mod sidecar;
 
@@ -33,6 +34,9 @@ pub fn run() {
             bff::hdx_auth_session,
             bff::hdx_auth_login,
             bff::hdx_auth_logout,
+            online_config::hdx_online_config_get,
+            online_config::hdx_online_config_save,
+            online_config::hdx_online_connection_check,
             bff::hdx_runtime_info,
             bff::hdx_tools_list,
             bff::hdx_tools_create
