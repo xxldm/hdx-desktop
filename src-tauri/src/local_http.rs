@@ -11,6 +11,13 @@ pub struct HttpResponse {
     pub body: String,
 }
 
+pub struct HttpRequest<'a> {
+    pub method: &'a str,
+    pub path: &'a str,
+    pub headers: Vec<(&'a str, &'a str)>,
+    pub body: Option<&'a str>,
+}
+
 pub fn reserve_local_port() -> Result<u16, String> {
     let listener =
         TcpListener::bind((LOCAL_HOST, 0)).map_err(|error| format!("分配本机端口失败：{error}"))?;
@@ -23,6 +30,21 @@ pub fn reserve_local_port() -> Result<u16, String> {
 }
 
 pub fn http_get(port: u16, path: &str) -> Result<HttpResponse, String> {
+    http_request(
+        port,
+        HttpRequest {
+            method: "GET",
+            path,
+            headers: Vec::new(),
+            body: None,
+        },
+    )
+}
+
+pub fn http_request(port: u16, request: HttpRequest<'_>) -> Result<HttpResponse, String> {
+    validate_method(request.method)?;
+    validate_path(request.path)?;
+
     let mut stream = TcpStream::connect((LOCAL_HOST, port))
         .map_err(|error| format!("连接本机服务失败：{error}"))?;
     stream
@@ -32,11 +54,30 @@ pub fn http_get(port: u16, path: &str) -> Result<HttpResponse, String> {
         .set_write_timeout(Some(Duration::from_secs(5)))
         .map_err(|error| format!("设置本机服务写入超时失败：{error}"))?;
 
-    let request = format!(
-        "GET {path} HTTP/1.1\r\nHost: {LOCAL_HOST}:{port}\r\nConnection: close\r\nAccept: application/json\r\n\r\n"
+    let body = request.body.unwrap_or("");
+    let mut header_lines = String::new();
+    for (name, value) in request.headers {
+        validate_header(name, value)?;
+        header_lines.push_str(name);
+        header_lines.push_str(": ");
+        header_lines.push_str(value);
+        header_lines.push_str("\r\n");
+    }
+
+    let content_headers = if body.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "Content-Type: application/json\r\nContent-Length: {}\r\n",
+            body.len()
+        )
+    };
+    let request_text = format!(
+        "{} {} HTTP/1.1\r\nHost: {LOCAL_HOST}:{port}\r\nConnection: close\r\nAccept: application/json\r\n{header_lines}{content_headers}\r\n{body}",
+        request.method, request.path
     );
     stream
-        .write_all(request.as_bytes())
+        .write_all(request_text.as_bytes())
         .map_err(|error| format!("发送本机服务请求失败：{error}"))?;
 
     let mut response = Vec::new();
@@ -44,6 +85,36 @@ pub fn http_get(port: u16, path: &str) -> Result<HttpResponse, String> {
         .read_to_end(&mut response)
         .map_err(|error| format!("读取本机服务响应失败：{error}"))?;
     parse_http_response(&response)
+}
+
+fn validate_method(method: &str) -> Result<(), String> {
+    if matches!(method, "GET" | "POST") {
+        return Ok(());
+    }
+
+    Err(format!("不支持的本机 HTTP 方法：{method}"))
+}
+
+fn validate_path(path: &str) -> Result<(), String> {
+    if path.starts_with('/') && !path.contains('\r') && !path.contains('\n') {
+        return Ok(());
+    }
+
+    Err(format!("本机 HTTP path 无效：{path}"))
+}
+
+fn validate_header(name: &str, value: &str) -> Result<(), String> {
+    let valid_name = !name.is_empty()
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'));
+    let valid_value = !value.contains('\r') && !value.contains('\n');
+
+    if valid_name && valid_value {
+        return Ok(());
+    }
+
+    Err(format!("本机 HTTP header 无效：{name}"))
 }
 
 fn parse_http_response(response: &[u8]) -> Result<HttpResponse, String> {

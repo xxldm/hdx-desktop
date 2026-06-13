@@ -65,13 +65,13 @@ pub fn collect(flavor: DesktopFlavor) -> Vec<CapabilityStatus> {
             description: "Full flavor 会启动本机后端 sidecar，token 不暴露给 WebView。",
         });
         capabilities.push(CapabilityStatus {
-            id: "local-web-server",
-            name: "Full 本机 Web",
+            id: "desktop-rust-bff",
+            name: "Desktop Rust BFF",
             scope: CapabilityScope::FlavorFull,
             platform: "full-flavor",
             state: CapabilityState::Ready,
-            webview_exposure: WebviewExposure::None,
-            description: "Full flavor 通过受控 Web/Nuxt server 注入本机 token。",
+            webview_exposure: WebviewExposure::CommandOnly,
+            description: "Desktop 静态 UI 通过 Rust BFF 访问本机后端，不接触本机 token。",
         });
     }
 

@@ -189,6 +189,42 @@
           "markdownDescription": "Enables the desktop_status command without any pre-configured scope."
         },
         {
+          "description": "Enables the hdx_auth_login command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-auth-login",
+          "markdownDescription": "Enables the hdx_auth_login command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_auth_logout command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-auth-logout",
+          "markdownDescription": "Enables the hdx_auth_logout command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_auth_session command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-auth-session",
+          "markdownDescription": "Enables the hdx_auth_session command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_runtime_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-runtime-info",
+          "markdownDescription": "Enables the hdx_runtime_info command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_tools_create command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-tools-create",
+          "markdownDescription": "Enables the hdx_tools_create command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_tools_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-tools-list",
+          "markdownDescription": "Enables the hdx_tools_list command without any pre-configured scope."
+        },
+        {
           "description": "Denies the capability_status command without any pre-configured scope.",
           "type": "string",
           "const": "deny-capability-status",
@@ -201,10 +237,46 @@
           "markdownDescription": "Denies the desktop_status command without any pre-configured scope."
         },
         {
-          "description": "允许主窗口读取 HDX Desktop 运行状态和 capability 状态。",
+          "description": "Denies the hdx_auth_login command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-auth-login",
+          "markdownDescription": "Denies the hdx_auth_login command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_auth_logout command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-auth-logout",
+          "markdownDescription": "Denies the hdx_auth_logout command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_auth_session command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-auth-session",
+          "markdownDescription": "Denies the hdx_auth_session command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_runtime_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-runtime-info",
+          "markdownDescription": "Denies the hdx_runtime_info command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_tools_create command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-tools-create",
+          "markdownDescription": "Denies the hdx_tools_create command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_tools_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-tools-list",
+          "markdownDescription": "Denies the hdx_tools_list command without any pre-configured scope."
+        },
+        {
+          "description": "允许主窗口读取 HDX Desktop 状态，并通过 Rust BFF 调用 HDX API。",
           "type": "string",
           "const": "desktop-status",
-          "markdownDescription": "允许主窗口读取 HDX Desktop 运行状态和 capability 状态。"
+          "markdownDescription": "允许主窗口读取 HDX Desktop 状态，并通过 Rust BFF 调用 HDX API。"
         },
         {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",

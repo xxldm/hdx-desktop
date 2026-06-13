@@ -4,6 +4,12 @@ fn main() {
             .app_manifest(tauri_build::AppManifest::new().commands(&[
                 "desktop_status",
                 "capability_status",
+                "hdx_auth_session",
+                "hdx_auth_login",
+                "hdx_auth_logout",
+                "hdx_runtime_info",
+                "hdx_tools_list",
+                "hdx_tools_create",
             ])),
     )
     .expect("生成 Tauri 构建上下文失败。");

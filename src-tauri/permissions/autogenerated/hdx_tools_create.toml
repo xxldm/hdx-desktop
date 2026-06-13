@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hdx-tools-create"
+description = "Enables the hdx_tools_create command without any pre-configured scope."
+commands.allow = ["hdx_tools_create"]
+
+[[permission]]
+identifier = "deny-hdx-tools-create"
+description = "Denies the hdx_tools_create command without any pre-configured scope."
+commands.deny = ["hdx_tools_create"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hdx-auth-session"
+description = "Enables the hdx_auth_session command without any pre-configured scope."
+commands.allow = ["hdx_auth_session"]
+
+[[permission]]
+identifier = "deny-hdx-auth-session"
+description = "Denies the hdx_auth_session command without any pre-configured scope."
+commands.deny = ["hdx_auth_session"]

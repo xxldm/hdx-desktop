@@ -1,4 +1,13 @@
 [[permission]]
 identifier = "desktop-status"
-description = "允许主窗口读取 HDX Desktop 运行状态和 capability 状态。"
-commands.allow = ["desktop_status", "capability_status"]
+description = "允许主窗口读取 HDX Desktop 状态，并通过 Rust BFF 调用 HDX API。"
+commands.allow = [
+    "desktop_status",
+    "capability_status",
+    "hdx_auth_session",
+    "hdx_auth_login",
+    "hdx_auth_logout",
+    "hdx_runtime_info",
+    "hdx_tools_list",
+    "hdx_tools_create",
+]
