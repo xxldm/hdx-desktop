@@ -1,9 +1,11 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{Map, Value};
-
+use tauri::AppHandle;
 use crate::{
     flavor,
     local_http::{http_request, HttpRequest, LOCAL_HOST},
+    online_config,
+    online_session::{self, OnlineSessionHolder},
     sidecar::{BackendSidecar, LocalBackendSession},
 };
 
@@ -21,8 +23,8 @@ pub struct BackendAuthUser {
 pub struct WebAuthPublicSession {
     authenticated: bool,
     csrf_token: String,
-    access_token_expires_at: Option<String>,
-    refresh_token_expires_at: Option<String>,
+    access_token_expires_at: Option<u64>,
+    refresh_token_expires_at: Option<u64>,
     sid: Option<String>,
     actor_type: Option<String>,
     subject: Option<String>,
@@ -70,52 +72,105 @@ pub struct CreateToolRequest {
 }
 
 #[tauri::command]
-pub fn hdx_auth_session() -> WebAuthPublicSession {
+pub fn hdx_auth_session(
+    _app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+) -> WebAuthPublicSession {
     if flavor::active_flavor().includes_full_backend() {
         return local_admin_session();
     }
 
-    anonymous_session()
+    online_remote_session(&online_session)
 }
 
 #[tauri::command]
-pub fn hdx_auth_login(input: WebAuthLoginRequest) -> Result<WebAuthPublicSession, String> {
+pub fn hdx_auth_login(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    input: WebAuthLoginRequest,
+) -> Result<WebAuthPublicSession, String> {
     input.validate()?;
 
     if flavor::active_flavor().includes_full_backend() {
         return Ok(local_admin_session());
     }
 
-    Err("Desktop Online 远端认证 BFF 尚未配置。".to_string())
+    let config = require_online_config(&app)?;
+    let public = online_session.login(&config, &input.identifier, &input.password)?;
+    Ok(online_public_to_web_session(&public))
 }
 
 #[tauri::command]
-pub fn hdx_auth_logout() -> WebAuthPublicSession {
+pub fn hdx_auth_logout(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+) -> WebAuthPublicSession {
     if flavor::active_flavor().includes_full_backend() {
         return local_admin_session();
     }
 
-    anonymous_session()
+    match online_config::read_app_config(&app) {
+        Ok(Some(config)) => {
+            let public = online_session.logout(&config).unwrap_or_else(|_| {
+                online_session::OnlinePublicSession::anonymous_pub()
+            });
+            online_public_to_web_session(&public)
+        }
+        Ok(None) => anonymous_session(),
+        Err(_) => anonymous_session(),
+    }
 }
 
 #[tauri::command]
 pub fn hdx_runtime_info(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
     backend_sidecar: tauri::State<'_, BackendSidecar>,
 ) -> Result<RuntimeInfo, String> {
-    ensure_full_flavor()?;
-    let session = require_local_backend_session(&backend_sidecar)?;
-    let runtime = fetch_local_json::<RuntimeInfo>(&session, "/api/v1/runtime", "GET", None)?;
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let runtime = fetch_local_json::<RuntimeInfo>(&session, "/api/v1/runtime", "GET", None)?;
+        runtime.validate()?;
+        return Ok(runtime);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let runtime = online_session::fetch_remote_business::<RuntimeInfo>(
+        &config,
+        &access_token,
+        "/api/v1/runtime",
+        "GET",
+        None,
+    )?;
     runtime.validate()?;
     Ok(runtime)
 }
 
 #[tauri::command]
 pub fn hdx_tools_list(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
     backend_sidecar: tauri::State<'_, BackendSidecar>,
 ) -> Result<Vec<ToolRecord>, String> {
-    ensure_full_flavor()?;
-    let session = require_local_backend_session(&backend_sidecar)?;
-    let tools = fetch_local_json::<Vec<ToolRecord>>(&session, "/api/v1/tools", "GET", None)?;
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let tools = fetch_local_json::<Vec<ToolRecord>>(&session, "/api/v1/tools", "GET", None)?;
+        for tool in &tools {
+            tool.validate()?;
+        }
+        return Ok(tools);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let tools = online_session::fetch_remote_business::<Vec<ToolRecord>>(
+        &config,
+        &access_token,
+        "/api/v1/tools",
+        "GET",
+        None,
+    )?;
 
     for tool in &tools {
         tool.validate()?;
@@ -126,13 +181,29 @@ pub fn hdx_tools_list(
 
 #[tauri::command]
 pub fn hdx_tools_create(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
     backend_sidecar: tauri::State<'_, BackendSidecar>,
     input: CreateToolRequest,
 ) -> Result<ToolRecord, String> {
-    ensure_full_flavor()?;
     let body = input.to_backend_body()?;
-    let session = require_local_backend_session(&backend_sidecar)?;
-    let tool = fetch_local_json::<ToolRecord>(&session, "/api/v1/tools", "POST", Some(body))?;
+
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let tool = fetch_local_json::<ToolRecord>(&session, "/api/v1/tools", "POST", Some(body))?;
+        tool.validate()?;
+        return Ok(tool);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let tool = online_session::fetch_remote_business::<ToolRecord>(
+        &config,
+        &access_token,
+        "/api/v1/tools",
+        "POST",
+        Some(&body),
+    )?;
     tool.validate()?;
     Ok(tool)
 }
@@ -170,18 +241,47 @@ fn local_admin_session() -> WebAuthPublicSession {
     }
 }
 
-fn ensure_full_flavor() -> Result<(), String> {
-    if flavor::active_flavor().includes_full_backend() {
-        return Ok(());
-    }
-
-    Err("Desktop Online 远端 Rust BFF 尚未配置。".to_string())
-}
-
 fn require_local_backend_session(sidecar: &BackendSidecar) -> Result<LocalBackendSession, String> {
     sidecar
         .local_backend_session()
         .ok_or_else(|| "本机后端尚未就绪，请稍后重试。".to_string())
+}
+
+fn require_online_config(app: &AppHandle) -> Result<crate::online_config::OnlineConfig, String> {
+    online_config::read_app_config(app)?
+        .ok_or_else(|| "请先配置 Desktop Online 远端服务地址。".to_string())
+}
+
+fn online_remote_session(
+    online_session: &OnlineSessionHolder,
+) -> WebAuthPublicSession {
+    let public = online_session.snapshot();
+    online_public_to_web_session(&public)
+}
+
+fn online_public_to_web_session(
+    public: &online_session::OnlinePublicSession,
+) -> WebAuthPublicSession {
+    if public.authenticated {
+        let user = public.user.as_ref().map(|u| BackendAuthUser {
+            id: u.id,
+            display_name: u.display_name.clone(),
+        });
+        WebAuthPublicSession {
+            authenticated: true,
+            csrf_token: DESKTOP_CSRF_TOKEN.to_string(),
+            access_token_expires_at: public.access_token_expires_at,
+            refresh_token_expires_at: public.refresh_token_expires_at,
+            sid: public.sid.clone(),
+            actor_type: Some("USER".to_string()),
+            subject: public.user.as_ref().map(|u| format!("USER:{}", u.id)),
+            user,
+            roles: public.roles.clone(),
+            permissions: public.permissions.clone(),
+        }
+    } else {
+        anonymous_session()
+    }
 }
 
 fn fetch_local_json<T>(

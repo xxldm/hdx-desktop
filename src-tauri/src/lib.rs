@@ -4,6 +4,7 @@ mod commands;
 mod flavor;
 mod local_http;
 mod online_config;
+mod online_session;
 mod platform;
 mod sidecar;
 
@@ -12,10 +13,12 @@ use tauri::Manager;
 pub fn run() {
     let backend_sidecar = sidecar::BackendSidecar::default();
     let shutdown_sidecar = backend_sidecar.clone();
+    let online_session = online_session::OnlineSessionHolder::default();
 
     tauri::Builder::default()
         .setup(move |app| {
             app.manage(backend_sidecar.clone());
+            app.manage(online_session.clone());
             if flavor::active_flavor().includes_full_backend() {
                 let resource_dir = app.path().resource_dir().map_err(|error| {
                     std::io::Error::other(format!("无法定位 Tauri resource 目录：{error}"))

@@ -19,18 +19,18 @@ const MAX_TIMEOUT_SECONDS: u64 = 60;
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OnlineConfig {
-    auth_base_url: String,
-    gateway_base_url: String,
-    request_timeout_seconds: u64,
+    pub auth_base_url: String,
+    pub gateway_base_url: String,
+    pub request_timeout_seconds: u64,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OnlineConfigInput {
-    auth_base_url: String,
-    gateway_base_url: String,
+    pub auth_base_url: String,
+    pub gateway_base_url: String,
     #[serde(default)]
-    request_timeout_seconds: Option<u64>,
+    pub request_timeout_seconds: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -157,6 +157,11 @@ fn read_config(path: &PathBuf) -> Result<Option<OnlineConfig>, String> {
     let input: OnlineConfigInput = serde_json::from_str(&content)
         .map_err(|error| format!("解析 Desktop Online 配置失败：{error}"))?;
     input.normalize().map(Some)
+}
+
+/// 从用户级配置读取已保存的 Online 配置，供 Rust BFF 使用。
+pub fn read_app_config(app: &AppHandle) -> Result<Option<OnlineConfig>, String> {
+    read_config(&config_path(app)?)
 }
 
 fn check_endpoint(name: &str, base_url: &str, timeout_seconds: u64) -> OnlineEndpointCheck {

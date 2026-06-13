@@ -81,9 +81,18 @@ pub fn collect(flavor: DesktopFlavor) -> Vec<CapabilityStatus> {
             name: "远端地址",
             scope: CapabilityScope::FlavorOnline,
             platform: "online-flavor",
-            state: CapabilityState::Planned,
+            state: CapabilityState::Ready,
             webview_exposure: WebviewExposure::CommandOnly,
-            description: "仅 Online flavor 后续读取用户填写的远端服务地址。",
+            description: "Online flavor 读取用户填写的远端服务地址，并完成远端登录与业务请求转发。",
+        });
+        capabilities.push(CapabilityStatus {
+            id: "desktop-rust-bff-online",
+            name: "Desktop Rust BFF (Online)",
+            scope: CapabilityScope::FlavorOnline,
+            platform: "online-flavor",
+            state: CapabilityState::Ready,
+            webview_exposure: WebviewExposure::CommandOnly,
+            description: "Online flavor 通过 Rust BFF 转发远端登录与业务请求，token 不暴露给 WebView。",
         });
     }
 
