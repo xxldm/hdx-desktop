@@ -23,8 +23,8 @@ pub struct BackendAuthUser {
 pub struct WebAuthPublicSession {
     authenticated: bool,
     csrf_token: String,
-    access_token_expires_at: Option<u64>,
-    refresh_token_expires_at: Option<u64>,
+    access_token_expires_at: Option<String>,
+    refresh_token_expires_at: Option<String>,
     sid: Option<String>,
     actor_type: Option<String>,
     subject: Option<String>,
@@ -270,8 +270,8 @@ fn online_public_to_web_session(
         WebAuthPublicSession {
             authenticated: true,
             csrf_token: DESKTOP_CSRF_TOKEN.to_string(),
-            access_token_expires_at: public.access_token_expires_at,
-            refresh_token_expires_at: public.refresh_token_expires_at,
+            access_token_expires_at: public.access_token_expires_at.clone(),
+            refresh_token_expires_at: public.refresh_token_expires_at.clone(),
             sid: public.sid.clone(),
             actor_type: Some("USER".to_string()),
             subject: public.user.as_ref().map(|u| format!("USER:{}", u.id)),

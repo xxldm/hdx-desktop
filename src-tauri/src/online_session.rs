@@ -23,8 +23,11 @@ struct OnlineSessionInner {
 struct RemoteTokenSession {
     access_token: String,
     access_token_expires_at: u64,
+    access_token_expires_iso: String,
     refresh_token: String,
+    #[allow(dead_code)]
     refresh_token_expires_at: u64,
+    refresh_token_expires_iso: String,
     sid: String,
     user: RemoteAuthUser,
     roles: Vec<String>,
@@ -43,8 +46,8 @@ pub struct RemoteAuthUser {
 #[serde(rename_all = "camelCase")]
 pub struct OnlinePublicSession {
     pub authenticated: bool,
-    pub access_token_expires_at: Option<u64>,
-    pub refresh_token_expires_at: Option<u64>,
+    pub access_token_expires_at: Option<String>,
+    pub refresh_token_expires_at: Option<String>,
     pub sid: Option<String>,
     pub user: Option<RemoteAuthUser>,
     pub roles: Vec<String>,
@@ -488,8 +491,10 @@ impl RemoteTokenSession {
         Self {
             access_token: response.access_token,
             access_token_expires_at,
+            access_token_expires_iso: response.access_token_expires_at,
             refresh_token: response.refresh_token,
             refresh_token_expires_at,
+            refresh_token_expires_iso: response.refresh_token_expires_at,
             sid: response.sid,
             user: response.user,
             roles: response.roles,
@@ -500,8 +505,8 @@ impl RemoteTokenSession {
     fn to_public(&self) -> OnlinePublicSession {
         OnlinePublicSession {
             authenticated: true,
-            access_token_expires_at: Some(self.access_token_expires_at),
-            refresh_token_expires_at: Some(self.refresh_token_expires_at),
+            access_token_expires_at: Some(self.access_token_expires_iso.clone()),
+            refresh_token_expires_at: Some(self.refresh_token_expires_iso.clone()),
             sid: Some(self.sid.clone()),
             user: Some(self.user.clone()),
             roles: self.roles.clone(),
@@ -518,8 +523,10 @@ mod tests {
         RemoteTokenSession {
             access_token: "access-secret".to_string(),
             access_token_expires_at: now_epoch_seconds() + 3600,
+            access_token_expires_iso: "2026-06-13T12:00:00Z".to_string(),
             refresh_token: "refresh-secret".to_string(),
             refresh_token_expires_at: now_epoch_seconds() + 86400,
+            refresh_token_expires_iso: "2026-06-20T12:00:00Z".to_string(),
             sid: "sid-123".to_string(),
             user: RemoteAuthUser {
                 id: 1,
