@@ -1,6 +1,3 @@
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::{Map, Value};
-use tauri::AppHandle;
 use crate::{
     flavor,
     local_http::{http_request, HttpRequest, LOCAL_HOST},
@@ -8,6 +5,9 @@ use crate::{
     online_session::{self, OnlineSessionHolder},
     sidecar::{BackendSidecar, LocalBackendSession},
 };
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::{Map, Value};
+use tauri::AppHandle;
 
 const DESKTOP_CSRF_TOKEN: &str = "desktop-csrf-token-000000000000000000000000000000000000";
 
@@ -111,13 +111,12 @@ pub fn hdx_auth_logout(
 
     match online_config::read_app_config(&app) {
         Ok(Some(config)) => {
-            let public = online_session.logout(&config).unwrap_or_else(|_| {
-                online_session::OnlinePublicSession::anonymous_pub()
-            });
+            let public = online_session
+                .logout(&config)
+                .unwrap_or_else(|_| online_session.clear_local());
             online_public_to_web_session(&public)
         }
-        Ok(None) => anonymous_session(),
-        Err(_) => anonymous_session(),
+        Ok(None) | Err(_) => online_public_to_web_session(&online_session.clear_local()),
     }
 }
 
@@ -252,9 +251,7 @@ fn require_online_config(app: &AppHandle) -> Result<crate::online_config::Online
         .ok_or_else(|| "请先配置 Desktop Online 远端服务地址。".to_string())
 }
 
-fn online_remote_session(
-    online_session: &OnlineSessionHolder,
-) -> WebAuthPublicSession {
+fn online_remote_session(online_session: &OnlineSessionHolder) -> WebAuthPublicSession {
     let public = online_session.snapshot();
     online_public_to_web_session(&public)
 }

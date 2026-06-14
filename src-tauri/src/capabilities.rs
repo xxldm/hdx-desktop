@@ -92,7 +92,8 @@ pub fn collect(flavor: DesktopFlavor) -> Vec<CapabilityStatus> {
             platform: "online-flavor",
             state: CapabilityState::Ready,
             webview_exposure: WebviewExposure::CommandOnly,
-            description: "Online flavor 通过 Rust BFF 转发远端登录与业务请求，token 不暴露给 WebView。",
+            description:
+                "Online flavor 通过 Rust BFF 转发远端登录与业务请求，token 不暴露给 WebView。",
         });
     }
 

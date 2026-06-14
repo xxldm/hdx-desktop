@@ -56,10 +56,6 @@ pub struct OnlinePublicSession {
 
 impl OnlinePublicSession {
     fn anonymous() -> Self {
-        Self::anonymous_pub()
-    }
-
-    pub fn anonymous_pub() -> Self {
         Self {
             authenticated: false,
             access_token_expires_at: None,
@@ -228,9 +224,13 @@ impl OnlineSessionHolder {
             let _ = post_auth_raw(config, "/api/auth/logout", &body);
         }
 
+        Ok(self.clear_local())
+    }
+
+    pub fn clear_local(&self) -> OnlinePublicSession {
         let mut inner = self.lock();
         inner.session = None;
-        Ok(OnlinePublicSession::anonymous())
+        OnlinePublicSession::anonymous()
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, OnlineSessionInner> {
@@ -281,12 +281,12 @@ fn post_auth_raw(
             if response.status() == 204 {
                 return Ok(serde_json::Value::Null);
             }
-            response.into_json::<serde_json::Value>().map_err(|error| {
-                RemoteError {
+            response
+                .into_json::<serde_json::Value>()
+                .map_err(|error| RemoteError {
                     status_code: None,
                     message: format!("读取认证中心响应失败：{error}"),
-                }
-            })
+                })
         }
         Err(ureq::Error::Status(status, response)) => Err(RemoteError {
             status_code: Some(status),
@@ -561,6 +561,20 @@ mod tests {
         assert!(!session.authenticated);
         assert!(session.user.is_none());
         assert!(session.sid.is_none());
+    }
+
+    #[test]
+    fn clear_local_removes_tokens_from_holder() {
+        let holder = OnlineSessionHolder::default();
+        {
+            let mut inner = holder.lock();
+            inner.session = Some(fake_token_session());
+        }
+
+        let public = holder.clear_local();
+
+        assert!(!public.authenticated);
+        assert!(!holder.snapshot().authenticated);
     }
 
     #[test]
