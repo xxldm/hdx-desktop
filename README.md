@@ -37,7 +37,7 @@ Desktop 当前没有 Web 端那种部署配置模板。客户端运行配置建�
 - `backend-build.json` 仍记录原始 `backend-full` Release archive 的文件名、sha256、后端 commit 和 entrypoint；运行时不解析 zip/tar archive。
 - Desktop 发布包使用 `apps/web` 的 `desktop-static` 静态输出作为 Tauri frontend，不内置 Node/Nitro 运行时。
 - Desktop 静态 UI 通过白名单 Tauri command 调用 Rust BFF。Full flavor 的 Rust BFF 使用 sidecar `/local/session` token 访问本机后端，但 token 不返回 WebView。
-- Online flavor 已在 Rust 状态中标记需要远端地址；远端地址填写、持久化和 Online Rust BFF 认证转发仍待后续实现。
+- Online flavor 已支持远端地址填写、持久化、连接检查和 Rust BFF 认证转发；access/refresh token 只保存在 Rust 主进程内存中，不返回 WebView。
 - 本地 `dev:full` / `dev:online` 仍使用本目录 Vite 状态面板，主要用于检查 Tauri flavor、capability 和 sidecar 状态。
 - Windows-only wallpaper mode 只保留 capability 位置，尚未调用 Win32 API。
 
