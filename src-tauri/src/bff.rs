@@ -1,75 +1,20 @@
 use crate::{
-    flavor,
-    local_http::{http_request, HttpRequest, LOCAL_HOST},
-    online_config,
+    flavor, online_config,
     online_session::{self, OnlineSessionHolder},
-    sidecar::{BackendSidecar, LocalBackendSession},
+    sidecar::BackendSidecar,
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::{Map, Value};
 use tauri::AppHandle;
 
+mod dto;
+mod local_backend;
+
+pub use dto::{
+    BackendAuthUser, CreateToolRequest, RuntimeInfo, ToolRecord, WebAuthLoginRequest,
+    WebAuthPublicSession,
+};
+use local_backend::fetch_local_json;
+
 const DESKTOP_CSRF_TOKEN: &str = "desktop-csrf-token-000000000000000000000000000000000000";
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BackendAuthUser {
-    id: u64,
-    display_name: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WebAuthPublicSession {
-    authenticated: bool,
-    csrf_token: String,
-    access_token_expires_at: Option<String>,
-    refresh_token_expires_at: Option<String>,
-    sid: Option<String>,
-    actor_type: Option<String>,
-    subject: Option<String>,
-    user: Option<BackendAuthUser>,
-    roles: Vec<String>,
-    permissions: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WebAuthLoginRequest {
-    identifier: String,
-    password: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeInfo {
-    application: String,
-    topology: String,
-    java_version: String,
-    native_image: bool,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ToolRecord {
-    id: u64,
-    tool_key: String,
-    display_name: String,
-    #[serde(default)]
-    description: Option<String>,
-    enabled: bool,
-    created_at: String,
-    updated_at: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateToolRequest {
-    tool_key: String,
-    display_name: String,
-    #[serde(default)]
-    description: Option<String>,
-}
 
 #[tauri::command]
 pub fn hdx_auth_session(
@@ -240,7 +185,9 @@ fn local_admin_session() -> WebAuthPublicSession {
     }
 }
 
-fn require_local_backend_session(sidecar: &BackendSidecar) -> Result<LocalBackendSession, String> {
+fn require_local_backend_session(
+    sidecar: &BackendSidecar,
+) -> Result<crate::sidecar::LocalBackendSession, String> {
     sidecar
         .local_backend_session()
         .ok_or_else(|| "本机后端尚未就绪，请稍后重试。".to_string())
@@ -281,120 +228,6 @@ fn online_public_to_web_session(
     }
 }
 
-fn fetch_local_json<T>(
-    session: &LocalBackendSession,
-    path: &str,
-    method: &str,
-    body: Option<Value>,
-) -> Result<T, String>
-where
-    T: DeserializeOwned,
-{
-    let port = parse_local_backend_port(&session.base_url)?;
-    let body_text = body
-        .map(|value| serde_json::to_string(&value))
-        .transpose()
-        .map_err(|error| format!("序列化 Desktop BFF 请求失败：{error}"))?;
-    let response = http_request(
-        port,
-        HttpRequest {
-            method,
-            path,
-            headers: vec![(&session.header_name, &session.token)],
-            body: body_text.as_deref(),
-        },
-    )?;
-
-    if !(200..300).contains(&response.status_code) {
-        return Err(format!(
-            "本机后端请求失败，HTTP 状态：{}",
-            response.status_code
-        ));
-    }
-
-    serde_json::from_str(&response.body).map_err(|error| format!("解析本机后端响应失败：{error}"))
-}
-
-fn parse_local_backend_port(base_url: &str) -> Result<u16, String> {
-    let prefix = format!("http://{LOCAL_HOST}:");
-    let port_text = base_url
-        .strip_prefix(&prefix)
-        .ok_or_else(|| format!("本机后端地址必须绑定 {LOCAL_HOST}：{base_url}"))?;
-
-    port_text
-        .parse::<u16>()
-        .map_err(|error| format!("解析本机后端端口失败：{error}"))
-}
-
-impl WebAuthLoginRequest {
-    fn validate(&self) -> Result<(), String> {
-        validate_trimmed_text("登录账号", &self.identifier, 1, 320)?;
-        validate_text("登录密码", &self.password, 1, 200)
-    }
-}
-
-impl RuntimeInfo {
-    fn validate(&self) -> Result<(), String> {
-        validate_trimmed_text("runtime.application", &self.application, 1, 200)?;
-        validate_trimmed_text("runtime.topology", &self.topology, 1, 200)?;
-        validate_trimmed_text("runtime.javaVersion", &self.java_version, 1, 80)?;
-        Ok(())
-    }
-}
-
-impl ToolRecord {
-    fn validate(&self) -> Result<(), String> {
-        validate_trimmed_text("tool.toolKey", &self.tool_key, 1, 80)?;
-        validate_trimmed_text("tool.displayName", &self.display_name, 1, 120)?;
-        if let Some(description) = &self.description {
-            validate_text("tool.description", description, 0, 500)?;
-        }
-        validate_trimmed_text("tool.createdAt", &self.created_at, 1, 80)?;
-        validate_trimmed_text("tool.updatedAt", &self.updated_at, 1, 80)?;
-        Ok(())
-    }
-}
-
-impl CreateToolRequest {
-    fn to_backend_body(&self) -> Result<Value, String> {
-        let tool_key = validate_trimmed_text("工具标识", &self.tool_key, 1, 80)?;
-        let display_name = validate_trimmed_text("工具名称", &self.display_name, 1, 120)?;
-        let mut body = Map::new();
-        body.insert("toolKey".to_string(), Value::String(tool_key));
-        body.insert("displayName".to_string(), Value::String(display_name));
-
-        if let Some(value) = &self.description {
-            body.insert(
-                "description".to_string(),
-                Value::String(validate_trimmed_text("工具说明", value, 0, 500)?),
-            );
-        }
-
-        Ok(Value::Object(body))
-    }
-}
-
-fn validate_trimmed_text(
-    name: &str,
-    value: &str,
-    min: usize,
-    max: usize,
-) -> Result<String, String> {
-    let trimmed = value.trim();
-    validate_text(name, trimmed, min, max)?;
-    Ok(trimmed.to_string())
-}
-
-fn validate_text(name: &str, value: &str, min: usize, max: usize) -> Result<(), String> {
-    let length = value.chars().count();
-
-    if length < min || length > max {
-        return Err(format!("{name} 长度必须在 {min} 到 {max} 个字符之间。"));
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -410,7 +243,7 @@ mod tests {
 
     #[test]
     fn parse_local_backend_port_rejects_remote_url() {
-        assert!(parse_local_backend_port("https://example.com").is_err());
+        assert!(local_backend::parse_local_backend_port("https://example.com").is_err());
     }
 
     #[test]

@@ -1,15 +1,17 @@
-use std::{
-    sync::{Arc, Mutex},
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::sync::{Arc, Mutex};
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use ureq::{Agent, AgentBuilder};
+use serde::{Deserialize, Serialize};
 
 use crate::online_config::OnlineConfig;
 
+mod http;
+mod time;
+
+pub(crate) use http::fetch_remote_business;
+use http::{post_auth, post_auth_raw};
+use time::{parse_iso_timestamp, should_refresh};
+
 /// access token 临近过期时提前刷新的时间窗口（秒）。
-const REFRESH_SKEW_SECONDS: u64 = 60;
 const CLIENT_TYPE_DESKTOP: &str = "DESKTOP";
 
 /// Rust 主进程持有的远端登录态。access token / refresh token 只存在这里，
@@ -240,247 +242,6 @@ impl OnlineSessionHolder {
     }
 }
 
-fn build_agent(config: &OnlineConfig) -> Agent {
-    AgentBuilder::new()
-        .timeout(Duration::from_secs(config.request_timeout_seconds))
-        .build()
-}
-
-fn build_url(base_url: &str, path: &str) -> String {
-    format!("{}{path}", base_url.trim_end_matches('/'))
-}
-
-fn post_auth<T: DeserializeOwned>(
-    config: &OnlineConfig,
-    path: &str,
-    body: &impl Serialize,
-) -> Result<T, RemoteError> {
-    let value = post_auth_raw(config, path, body)?;
-    serde_json::from_value::<T>(value).map_err(|error| RemoteError {
-        status_code: None,
-        message: format!("解析认证中心响应失败：{error}"),
-    })
-}
-
-fn post_auth_raw(
-    config: &OnlineConfig,
-    path: &str,
-    body: &impl Serialize,
-) -> Result<serde_json::Value, RemoteError> {
-    let url = build_url(&config.auth_base_url, path);
-    let agent = build_agent(config);
-
-    let payload = serde_json::to_value(body).unwrap_or(serde_json::Value::Null);
-    match agent
-        .post(&url)
-        .set("Accept", "application/json")
-        .set("Content-Type", "application/json")
-        .send_json(payload)
-    {
-        Ok(response) => {
-            if response.status() == 204 {
-                return Ok(serde_json::Value::Null);
-            }
-            response
-                .into_json::<serde_json::Value>()
-                .map_err(|error| RemoteError {
-                    status_code: None,
-                    message: format!("读取认证中心响应失败：{error}"),
-                })
-        }
-        Err(ureq::Error::Status(status, response)) => Err(RemoteError {
-            status_code: Some(status),
-            message: extract_remote_message(status, response),
-        }),
-        Err(error) => Err(RemoteError {
-            status_code: None,
-            message: format!("连接认证中心失败：{error}"),
-        }),
-    }
-}
-
-/// 向 gateway 发送带 Bearer token 的业务请求。
-pub fn fetch_remote_business<T: DeserializeOwned>(
-    config: &OnlineConfig,
-    access_token: &str,
-    path: &str,
-    method: &str,
-    body: Option<&serde_json::Value>,
-) -> Result<T, String> {
-    fetch_remote_business_inner(config, access_token, path, method, body)
-        .map_err(translate_business_error)
-}
-
-fn fetch_remote_business_inner<T: DeserializeOwned>(
-    config: &OnlineConfig,
-    access_token: &str,
-    path: &str,
-    method: &str,
-    body: Option<&serde_json::Value>,
-) -> Result<T, RemoteError> {
-    let url = build_url(&config.gateway_base_url, path);
-    let agent = build_agent(config);
-
-    let request = match method {
-        "GET" => agent.get(&url),
-        "POST" => agent.post(&url),
-        other => {
-            return Err(RemoteError {
-                status_code: None,
-                message: format!("不支持的远端请求方法：{other}"),
-            })
-        }
-    };
-
-    let request = request
-        .set("Accept", "application/json")
-        .set("Authorization", &format!("Bearer {access_token}"));
-
-    let response = if method == "POST" {
-        let payload = body
-            .cloned()
-            .unwrap_or(serde_json::Value::Object(Default::default()));
-        request
-            .set("Content-Type", "application/json")
-            .send_json(payload)
-    } else {
-        request.call()
-    };
-
-    match response {
-        Ok(response) => parse_business_response::<T>(response),
-        Err(ureq::Error::Status(status, response)) => Err(RemoteError {
-            status_code: Some(status),
-            message: extract_remote_message(status, response),
-        }),
-        Err(error) => Err(RemoteError {
-            status_code: None,
-            message: format!("连接业务网关失败：{error}"),
-        }),
-    }
-}
-
-fn parse_business_response<T: DeserializeOwned>(
-    response: ureq::Response,
-) -> Result<T, RemoteError> {
-    let value = response
-        .into_json::<serde_json::Value>()
-        .map_err(|error| RemoteError {
-            status_code: None,
-            message: format!("解析业务网关响应失败：{error}"),
-        })?;
-
-    serde_json::from_value::<T>(value).map_err(|error| RemoteError {
-        status_code: None,
-        message: format!("解析业务网关响应失败：{error}"),
-    })
-}
-
-fn translate_business_error(error: RemoteError) -> String {
-    match error.status() {
-        Some(401) => "登录已过期，请重新登录。".to_string(),
-        Some(403) => "当前账号无权执行该操作。".to_string(),
-        Some(status) => format!("业务网关返回 HTTP {status}。"),
-        None => error.to_message(),
-    }
-}
-
-fn extract_remote_message(status: u16, response: ureq::Response) -> String {
-    match response.into_json::<serde_json::Value>() {
-        Ok(value) => {
-            if let Some(message) = value.get("message").and_then(|v| v.as_str()) {
-                return message.to_string();
-            }
-            format!("远端服务返回 HTTP {status}。")
-        }
-        Err(_) => format!("远端服务返回 HTTP {status}。"),
-    }
-}
-
-fn now_epoch_seconds() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
-}
-
-fn should_refresh(access_token_expires_at: u64) -> bool {
-    access_token_expires_at.saturating_sub(now_epoch_seconds()) <= REFRESH_SKEW_SECONDS
-}
-
-fn parse_iso_timestamp(value: &str) -> Result<u64, String> {
-    let trimmed = value.trim();
-    // 后端返回 Instant.toString() 格式，固定以 Z 结尾（UTC）。
-    if !trimmed.ends_with('Z') {
-        return Err(format!("认证中心返回的时间格式无效：{value}"));
-    }
-
-    let datetime_part = &trimmed[..trimmed.len() - 1];
-    let (date_part, time_part) = datetime_part
-        .split_once('T')
-        .ok_or_else(|| format!("认证中心返回的时间格式无效：{value}"))?;
-
-    let (year, month, day) = parse_date(date_part)?;
-    let (hour, minute, second) = parse_time(time_part)?;
-
-    Ok(epoch_seconds(year, month, day, hour, minute, second))
-}
-
-fn parse_date(part: &str) -> Result<(u32, u32, u32), String> {
-    let segments: Vec<&str> = part.split('-').collect();
-    if segments.len() != 3 {
-        return Err(format!("日期格式无效：{part}"));
-    }
-    let year = segments[0]
-        .parse::<u32>()
-        .map_err(|_| format!("年份无效：{part}"))?;
-    let month = segments[1]
-        .parse::<u32>()
-        .map_err(|_| format!("月份无效：{part}"))?;
-    let day = segments[2]
-        .parse::<u32>()
-        .map_err(|_| format!("日期无效：{part}"))?;
-    Ok((year, month, day))
-}
-
-fn parse_time(part: &str) -> Result<(u32, u32, u32), String> {
-    // 去掉可能的毫秒部分（如 12:00:00.123）。
-    let main = part.split('.').next().unwrap_or(part);
-    let segments: Vec<&str> = main.split(':').collect();
-    if segments.len() < 2 || segments.len() > 3 {
-        return Err(format!("时间格式无效：{part}"));
-    }
-    let hour = segments[0]
-        .parse::<u32>()
-        .map_err(|_| format!("小时无效：{part}"))?;
-    let minute = segments[1]
-        .parse::<u32>()
-        .map_err(|_| format!("分钟无效：{part}"))?;
-    let second = if segments.len() == 3 {
-        segments[2]
-            .parse::<u32>()
-            .map_err(|_| format!("秒无效：{part}"))?
-    } else {
-        0
-    };
-    Ok((hour, minute, second))
-}
-
-/// 公历 UTC epoch 秒（Howard Hinnant 算法，不处理闰秒，精度对 token 过期判断足够）。
-fn epoch_seconds(year: u32, month: u32, day: u32, hour: u32, minute: u32, second: u32) -> u64 {
-    let y = if month <= 2 { year - 1 } else { year } as i64;
-    let m = month as i64;
-    let d = day as i64;
-    let era = if y >= 0 { y } else { y - 399 } / 400;
-    let yoe = (y - era * 400) as u64;
-    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy as u64;
-    (era * 146097 + doe as i64 - 719468) as u64 * 86400
-        + hour as u64 * 3600
-        + minute as u64 * 60
-        + second as u64
-}
-
 impl RemoteTokenSession {
     fn from_token_response(response: AuthTokenResponse) -> Self {
         let access_token_expires_at =
@@ -518,6 +279,7 @@ impl RemoteTokenSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::online_session::time::now_epoch_seconds;
 
     fn fake_token_session() -> RemoteTokenSession {
         RemoteTokenSession {
@@ -588,11 +350,11 @@ mod tests {
     #[test]
     fn build_url_joins_base_and_path() {
         assert_eq!(
-            build_url("https://api.example.com", "/api/v1/tools"),
+            http::build_url("https://api.example.com", "/api/v1/tools"),
             "https://api.example.com/api/v1/tools"
         );
         assert_eq!(
-            build_url("https://api.example.com/gateway/", "/api/v1/tools"),
+            http::build_url("https://api.example.com/gateway/", "/api/v1/tools"),
             "https://api.example.com/gateway/api/v1/tools"
         );
     }
