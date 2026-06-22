@@ -10,7 +10,7 @@ mod local_backend;
 
 pub use dto::{
     BackendAuthUser, CreateToolRequest, RuntimeInfo, ToolRecord, WebAuthLoginRequest,
-    WebAuthPublicSession,
+    WebAuthPublicSession, WorkbenchLayout,
 };
 use local_backend::fetch_local_json;
 
@@ -150,6 +150,67 @@ pub fn hdx_tools_create(
     )?;
     tool.validate()?;
     Ok(tool)
+}
+
+#[tauri::command]
+pub fn hdx_workbench_layout_get(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+) -> Result<WorkbenchLayout, String> {
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let layout =
+            fetch_local_json::<WorkbenchLayout>(&session, "/api/v1/workbench/layout", "GET", None)?;
+        layout.validate()?;
+        return Ok(layout);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let layout = online_session::fetch_remote_business::<WorkbenchLayout>(
+        &config,
+        &access_token,
+        "/api/v1/workbench/layout",
+        "GET",
+        None,
+    )?;
+    layout.validate()?;
+    Ok(layout)
+}
+
+#[tauri::command]
+pub fn hdx_workbench_layout_save(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+    input: WorkbenchLayout,
+) -> Result<WorkbenchLayout, String> {
+    let body = input.to_backend_body()?;
+
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let layout = fetch_local_json::<WorkbenchLayout>(
+            &session,
+            "/api/v1/workbench/layout",
+            "PUT",
+            Some(body),
+        )?;
+        layout.validate()?;
+        return Ok(layout);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let layout = online_session::fetch_remote_business::<WorkbenchLayout>(
+        &config,
+        &access_token,
+        "/api/v1/workbench/layout",
+        "PUT",
+        Some(&body),
+    )?;
+    layout.validate()?;
+    Ok(layout)
 }
 
 fn anonymous_session() -> WebAuthPublicSession {

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hdx-workbench-layout-save"
+description = "Enables the hdx_workbench_layout_save command without any pre-configured scope."
+commands.allow = ["hdx_workbench_layout_save"]
+
+[[permission]]
+identifier = "deny-hdx-workbench-layout-save"
+description = "Denies the hdx_workbench_layout_save command without any pre-configured scope."
+commands.deny = ["hdx_workbench_layout_save"]

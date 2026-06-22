@@ -42,7 +42,9 @@ pub fn run() {
             online_config::hdx_online_connection_check,
             bff::hdx_runtime_info,
             bff::hdx_tools_list,
-            bff::hdx_tools_create
+            bff::hdx_tools_create,
+            bff::hdx_workbench_layout_get,
+            bff::hdx_workbench_layout_save
         ])
         .build(tauri::generate_context!())
         .expect("运行 HDX Desktop 失败。")

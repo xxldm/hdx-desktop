@@ -243,6 +243,18 @@
           "markdownDescription": "Enables the hdx_tools_list command without any pre-configured scope."
         },
         {
+          "description": "Enables the hdx_workbench_layout_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-workbench-layout-get",
+          "markdownDescription": "Enables the hdx_workbench_layout_get command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_workbench_layout_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-workbench-layout-save",
+          "markdownDescription": "Enables the hdx_workbench_layout_save command without any pre-configured scope."
+        },
+        {
           "description": "Denies the capability_status command without any pre-configured scope.",
           "type": "string",
           "const": "deny-capability-status",
@@ -307,6 +319,18 @@
           "type": "string",
           "const": "deny-hdx-tools-list",
           "markdownDescription": "Denies the hdx_tools_list command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_workbench_layout_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-workbench-layout-get",
+          "markdownDescription": "Denies the hdx_workbench_layout_get command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_workbench_layout_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-workbench-layout-save",
+          "markdownDescription": "Denies the hdx_workbench_layout_save command without any pre-configured scope."
         },
         {
           "description": "允许主窗口读取 HDX Desktop 状态，并通过 Rust BFF 调用 HDX API。",

@@ -91,6 +91,7 @@ fn fetch_remote_business_inner<T: DeserializeOwned>(
     let request = match method {
         "GET" => agent.get(&url),
         "POST" => agent.post(&url),
+        "PUT" => agent.put(&url),
         other => {
             return Err(RemoteError {
                 status_code: None,
@@ -103,7 +104,7 @@ fn fetch_remote_business_inner<T: DeserializeOwned>(
         .set("Accept", "application/json")
         .set("Authorization", &format!("Bearer {access_token}"));
 
-    let response = if method == "POST" {
+    let response = if matches!(method, "POST" | "PUT") {
         let payload = body
             .cloned()
             .unwrap_or(serde_json::Value::Object(Default::default()));

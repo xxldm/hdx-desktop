@@ -12,6 +12,8 @@ fn main() {
             "hdx_runtime_info",
             "hdx_tools_list",
             "hdx_tools_create",
+            "hdx_workbench_layout_get",
+            "hdx_workbench_layout_save",
         ]),
     ))
     .expect("生成 Tauri 构建上下文失败。");
