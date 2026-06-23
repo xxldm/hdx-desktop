@@ -44,7 +44,9 @@ pub fn run() {
             bff::hdx_tools_list,
             bff::hdx_tools_create,
             bff::hdx_workbench_layout_get,
-            bff::hdx_workbench_layout_save
+            bff::hdx_workbench_layout_save,
+            bff::hdx_timer_preferences_get,
+            bff::hdx_timer_preferences_save
         ])
         .build(tauri::generate_context!())
         .expect("运行 HDX Desktop 失败。")

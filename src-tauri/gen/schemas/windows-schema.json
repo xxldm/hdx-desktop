@@ -231,6 +231,18 @@
           "markdownDescription": "Enables the hdx_runtime_info command without any pre-configured scope."
         },
         {
+          "description": "Enables the hdx_timer_preferences_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-timer-preferences-get",
+          "markdownDescription": "Enables the hdx_timer_preferences_get command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_timer_preferences_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-timer-preferences-save",
+          "markdownDescription": "Enables the hdx_timer_preferences_save command without any pre-configured scope."
+        },
+        {
           "description": "Enables the hdx_tools_create command without any pre-configured scope.",
           "type": "string",
           "const": "allow-hdx-tools-create",
@@ -307,6 +319,18 @@
           "type": "string",
           "const": "deny-hdx-runtime-info",
           "markdownDescription": "Denies the hdx_runtime_info command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_timer_preferences_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-timer-preferences-get",
+          "markdownDescription": "Denies the hdx_timer_preferences_get command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_timer_preferences_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-timer-preferences-save",
+          "markdownDescription": "Denies the hdx_timer_preferences_save command without any pre-configured scope."
         },
         {
           "description": "Denies the hdx_tools_create command without any pre-configured scope.",

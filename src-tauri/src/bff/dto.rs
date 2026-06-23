@@ -66,7 +66,8 @@ pub struct CreateToolRequest {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkbenchLayout {
-    version: u8,
+    schema_version: u8,
+    version: u32,
     rows: u8,
     columns: u8,
     gap: u8,
@@ -95,6 +96,39 @@ pub struct WorkbenchLayoutHeader {
     icon: bool,
     title: bool,
     description: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimerPreference {
+    schema_version: u8,
+    version: u32,
+    presets: Vec<TimerPreferencePreset>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimerPreferencePreset {
+    id: String,
+    order: u8,
+    duration_seconds: u32,
+    created_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimerPreferenceSaveRequest {
+    schema_version: u8,
+    version: u32,
+    presets: Vec<TimerPreferencePresetRequest>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimerPreferencePresetRequest {
+    id: String,
+    order: u8,
+    duration_seconds: u32,
 }
 
 impl WebAuthLoginRequest {
@@ -147,7 +181,7 @@ impl CreateToolRequest {
 
 impl WorkbenchLayout {
     pub(super) fn validate(&self) -> Result<(), String> {
-        if self.version != 1 {
+        if self.schema_version != 1 {
             return Err("工作台布局版本不支持。".to_string());
         }
 
@@ -222,6 +256,88 @@ impl WorkbenchLayoutWidget {
     }
 }
 
+impl TimerPreference {
+    pub(super) fn validate(&self) -> Result<(), String> {
+        if self.schema_version != 1 {
+            return Err("计时器预设版本不支持。".to_string());
+        }
+
+        if self.presets.is_empty() || self.presets.len() > 24 {
+            return Err("计时器预设数量必须在 1 到 24 个之间。".to_string());
+        }
+
+        let mut preset_ids = HashSet::new();
+        let mut durations = HashSet::new();
+
+        for preset in &self.presets {
+            preset.validate()?;
+
+            if !preset_ids.insert(preset.id.as_str()) {
+                return Err("计时器预设包含重复 ID。".to_string());
+            }
+
+            if !durations.insert(preset.duration_seconds) {
+                return Err("计时器预设包含重复时长。".to_string());
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl TimerPreferencePreset {
+    fn validate(&self) -> Result<(), String> {
+        validate_timer_preset_id("timer.preset.id", &self.id)?;
+        validate_u8_range("timer.preset.order", self.order, 0, 23)?;
+        validate_u32_range("timer.preset.durationSeconds", self.duration_seconds, 1, 86_400)?;
+        validate_trimmed_text("timer.preset.createdAt", &self.created_at, 1, 80)?;
+        Ok(())
+    }
+}
+
+impl TimerPreferenceSaveRequest {
+    pub(super) fn to_backend_body(&self) -> Result<Value, String> {
+        self.validate()?;
+        serde_json::to_value(self).map_err(|error| format!("序列化计时器预设失败：{error}"))
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        if self.schema_version != 1 {
+            return Err("计时器预设版本不支持。".to_string());
+        }
+
+        if self.presets.is_empty() || self.presets.len() > 24 {
+            return Err("计时器预设数量必须在 1 到 24 个之间。".to_string());
+        }
+
+        let mut preset_ids = HashSet::new();
+        let mut durations = HashSet::new();
+
+        for preset in &self.presets {
+            preset.validate()?;
+
+            if !preset_ids.insert(preset.id.as_str()) {
+                return Err("计时器预设包含重复 ID。".to_string());
+            }
+
+            if !durations.insert(preset.duration_seconds) {
+                return Err("计时器预设包含重复时长。".to_string());
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl TimerPreferencePresetRequest {
+    fn validate(&self) -> Result<(), String> {
+        validate_timer_preset_id("timer.preset.id", &self.id)?;
+        validate_u8_range("timer.preset.order", self.order, 0, 23)?;
+        validate_u32_range("timer.preset.durationSeconds", self.duration_seconds, 1, 86_400)?;
+        Ok(())
+    }
+}
+
 fn validate_trimmed_text(
     name: &str,
     value: &str,
@@ -251,8 +367,35 @@ fn validate_u8_range(name: &str, value: u8, min: u8, max: u8) -> Result<(), Stri
     Ok(())
 }
 
+fn validate_u32_range(name: &str, value: u32, min: u32, max: u32) -> Result<(), String> {
+    if value < min || value > max {
+        return Err(format!("{name} 必须在 {min} 到 {max} 之间。"));
+    }
+
+    Ok(())
+}
+
 fn validate_workbench_key(name: &str, value: &str) -> Result<(), String> {
     validate_text(name, value, 1, 80)?;
+
+    let mut chars = value.chars();
+    let first = chars.next().ok_or_else(|| format!("{name} 格式无效。"))?;
+
+    if !(first.is_ascii_lowercase() || first.is_ascii_digit()) {
+        return Err(format!("{name} 格式无效。"));
+    }
+
+    if chars.all(|character| {
+        character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+    }) {
+        return Ok(());
+    }
+
+    Err(format!("{name} 格式无效。"))
+}
+
+fn validate_timer_preset_id(name: &str, value: &str) -> Result<(), String> {
+    validate_text(name, value, 1, 120)?;
 
     let mut chars = value.chars();
     let first = chars.next().ok_or_else(|| format!("{name} 格式无效。"))?;
@@ -277,6 +420,7 @@ mod tests {
     #[test]
     fn workbench_layout_rejects_overlapping_widgets() {
         let layout = WorkbenchLayout {
+            schema_version: 1,
             version: 1,
             rows: 2,
             columns: 2,
@@ -293,6 +437,7 @@ mod tests {
     #[test]
     fn workbench_layout_serializes_valid_backend_body() {
         let layout = WorkbenchLayout {
+            schema_version: 1,
             version: 1,
             rows: 2,
             columns: 2,
@@ -301,9 +446,24 @@ mod tests {
         };
         let body = layout.to_backend_body().unwrap();
 
+        assert_eq!(body["schemaVersion"], 1);
         assert_eq!(body["version"], 1);
         assert_eq!(body["widgets"][0]["id"], "first");
         assert_eq!(body["widgets"][0]["header"]["title"], true);
+    }
+
+    #[test]
+    fn timer_preference_save_request_rejects_duplicate_durations() {
+        let request = TimerPreferenceSaveRequest {
+            schema_version: 1,
+            version: 1,
+            presets: vec![
+                timer_preset("timer-60", 0, 60),
+                timer_preset("timer-60-copy", 1, 60),
+            ],
+        };
+
+        assert_eq!(request.to_backend_body().unwrap_err(), "计时器预设包含重复时长。");
     }
 
     fn widget(
@@ -331,6 +491,14 @@ mod tests {
                 title: true,
                 description: true,
             },
+        }
+    }
+
+    fn timer_preset(id: &str, order: u8, duration_seconds: u32) -> TimerPreferencePresetRequest {
+        TimerPreferencePresetRequest {
+            id: id.to_string(),
+            order,
+            duration_seconds,
         }
     }
 }
