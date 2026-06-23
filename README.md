@@ -10,6 +10,7 @@ Desktop 第一阶段设计已由根仓库 `docs/adr/0008-desktop-tauri-windows-l
 - `HDX Desktop Full` 包含本机后端 sidecar/native exe，仅离线本地模式。
 - `HDX Desktop Online` 不包含 all-in-one，仅在线远程模式。
 - 自启动、通知、deep link、托盘、配置目录和导入导出应抽象为 Windows/Linux 通用 desktop capability。
+- 用户数据持久化与跨端同步边界见根仓库 `docs/adr/0016-user-data-persistence-and-sync-boundary.md`。
 - 类似壁纸软件的桌面窗口嵌入是 Windows-only wallpaper mode，必须单独做 Win32 spike。
 
 ## 命令
@@ -31,13 +32,17 @@ Tauri `productName` 使用 `.` 连接并保留大小写，避免安装包默认�
 
 Desktop 当前没有 Web 端那种部署配置模板。客户端运行配置建议由应用首启/设置页写入用户级 app config，并由 Rust 侧做 schema 校验；绿色包也使用同一用户级配置位置，不在 zip 根目录维护另一套配置。
 
+用户级 app config 只保存纯客户端配置，例如开机自启、远端地址、窗口偏好、托盘偏好和本机 capability 开关。Full flavor 的业务数据、工作台布局、组件配置和模块数据进入本机数据库；Online flavor 的登录用户数据以远端后端为事实源。
+
 ## 当前边界
 
 - Full flavor 会从 Tauri resource 的 `backend/` 目录复制已解压 `backend-full` 到用户数据目录，启动本机 `backend-all-in-one`，轮询 `/actuator/health`，再读取 `/local/session`。
+- Full flavor 的本机用户数据由 sidecar 后端和本机数据库管理，不写入 Tauri app config。
 - `backend-build.json` 仍记录原始 `backend-full` Release archive 的文件名、sha256、后端 commit 和 entrypoint；运行时不解析 zip/tar archive。
 - Desktop 发布包使用 `apps/web` 的 `desktop-static` 静态输出作为 Tauri frontend，不内置 Node/Nitro 运行时。
 - Desktop 静态 UI 通过白名单 Tauri command 调用 Rust BFF。Full flavor 的 Rust BFF 使用 sidecar `/local/session` token 访问本机后端，但 token 不返回 WebView。
 - Online flavor 已支持远端地址填写、持久化、连接检查和 Rust BFF 认证转发；access/refresh token 只保存在 Rust 主进程内存中，不返回 WebView。
+- 计时器运行状态属于设备级状态，不跨设备同步；计时器预设和组件配置后续按用户数据事实源处理。
 - 本地 `dev:full` / `dev:online` 仍使用本目录 Vite 状态面板，主要用于检查 Tauri flavor、capability 和 sidecar 状态。
 - Windows-only wallpaper mode 只保留 capability 位置，尚未调用 Win32 API。
 
