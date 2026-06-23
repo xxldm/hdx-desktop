@@ -76,6 +76,23 @@ pub struct HolidayRecord {
     sort_order: u32,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HolidayAdminRecord {
+    id: u64,
+    version: u32,
+    holiday_key: String,
+    display_name: String,
+    #[serde(default)]
+    description: Option<String>,
+    date: String,
+    recurring: bool,
+    enabled: bool,
+    sort_order: u32,
+    updated_at: String,
+    updated_by_user_id: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateToolRequest {
@@ -83,6 +100,32 @@ pub struct CreateToolRequest {
     pub(super) display_name: String,
     #[serde(default)]
     pub(super) description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HolidayCreateRequest {
+    pub(super) holiday_key: String,
+    pub(super) display_name: String,
+    #[serde(default)]
+    pub(super) description: Option<String>,
+    pub(super) date: String,
+    pub(super) recurring: bool,
+    pub(super) enabled: bool,
+    pub(super) sort_order: u32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HolidayUpdateRequest {
+    pub(super) version: u32,
+    pub(super) display_name: String,
+    #[serde(default)]
+    pub(super) description: Option<String>,
+    pub(super) date: String,
+    pub(super) recurring: bool,
+    pub(super) enabled: bool,
+    pub(super) sort_order: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -235,6 +278,22 @@ impl HolidayRecord {
     }
 }
 
+impl HolidayAdminRecord {
+    pub(super) fn validate(&self) -> Result<(), String> {
+        validate_holiday_key("holiday.holidayKey", &self.holiday_key)?;
+        validate_trimmed_text("holiday.displayName", &self.display_name, 1, 120)?;
+        if let Some(description) = &self.description {
+            validate_text("holiday.description", description, 0, 500)?;
+        }
+        validate_date_text("holiday.date", &self.date)?;
+        validate_u32_range("holiday.version", self.version, 1, u32::MAX)?;
+        validate_u32_range("holiday.sortOrder", self.sort_order, 0, 9_999)?;
+        validate_trimmed_text("holiday.updatedAt", &self.updated_at, 1, 80)?;
+        validate_trimmed_text("holiday.updatedByUserId", &self.updated_by_user_id, 1, 160)?;
+        Ok(())
+    }
+}
+
 impl CreateToolRequest {
     pub(super) fn to_backend_body(&self) -> Result<Value, String> {
         let tool_key = validate_trimmed_text("工具标识", &self.tool_key, 1, 80)?;
@@ -249,6 +308,46 @@ impl CreateToolRequest {
                 Value::String(validate_trimmed_text("工具说明", value, 0, 500)?),
             );
         }
+
+        Ok(Value::Object(body))
+    }
+}
+
+impl HolidayCreateRequest {
+    pub(super) fn to_backend_body(&self) -> Result<Value, String> {
+        let holiday_key = validate_holiday_key("节日标识", &self.holiday_key)?;
+        let display_name = validate_trimmed_text("节日名称", &self.display_name, 1, 120)?;
+        validate_date_text("节日日期", &self.date)?;
+        validate_u32_range("节日排序", self.sort_order, 0, 9_999)?;
+
+        let mut body = Map::new();
+        body.insert("holidayKey".to_string(), Value::String(holiday_key));
+        body.insert("displayName".to_string(), Value::String(display_name));
+        body.insert("date".to_string(), Value::String(self.date.clone()));
+        body.insert("recurring".to_string(), Value::Bool(self.recurring));
+        body.insert("enabled".to_string(), Value::Bool(self.enabled));
+        body.insert("sortOrder".to_string(), Value::Number(self.sort_order.into()));
+        insert_optional_description(&mut body, &self.description)?;
+
+        Ok(Value::Object(body))
+    }
+}
+
+impl HolidayUpdateRequest {
+    pub(super) fn to_backend_body(&self) -> Result<Value, String> {
+        validate_u32_range("节日版本", self.version, 1, u32::MAX)?;
+        let display_name = validate_trimmed_text("节日名称", &self.display_name, 1, 120)?;
+        validate_date_text("节日日期", &self.date)?;
+        validate_u32_range("节日排序", self.sort_order, 0, 9_999)?;
+
+        let mut body = Map::new();
+        body.insert("version".to_string(), Value::Number(self.version.into()));
+        body.insert("displayName".to_string(), Value::String(display_name));
+        body.insert("date".to_string(), Value::String(self.date.clone()));
+        body.insert("recurring".to_string(), Value::Bool(self.recurring));
+        body.insert("enabled".to_string(), Value::Bool(self.enabled));
+        body.insert("sortOrder".to_string(), Value::Number(self.sort_order.into()));
+        insert_optional_description(&mut body, &self.description)?;
 
         Ok(Value::Object(body))
     }
@@ -527,6 +626,41 @@ fn validate_timer_preset_id(name: &str, value: &str) -> Result<(), String> {
     Err(format!("{name} 格式无效。"))
 }
 
+fn validate_holiday_key(name: &str, value: &str) -> Result<String, String> {
+    let trimmed = validate_trimmed_text(name, value, 1, 80)?;
+    let mut chars = trimmed.chars();
+    let first = chars.next().ok_or_else(|| format!("{name} 格式无效。"))?;
+
+    if !(first.is_ascii_lowercase() || first.is_ascii_digit()) {
+        return Err(format!("{name} 格式无效。"));
+    }
+
+    if chars.all(|character| {
+        character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+    }) {
+        return Ok(trimmed);
+    }
+
+    Err(format!("{name} 格式无效。"))
+}
+
+fn insert_optional_description(
+    body: &mut Map<String, Value>,
+    description: &Option<String>,
+) -> Result<(), String> {
+    if let Some(value) = description {
+        let trimmed = validate_trimmed_text("节日说明", value, 0, 500)?;
+
+        if !trimmed.is_empty() {
+            body.insert("description".to_string(), Value::String(trimmed));
+            return Ok(());
+        }
+    }
+
+    body.insert("description".to_string(), Value::Null);
+    Ok(())
+}
+
 fn validate_date_text(name: &str, value: &str) -> Result<(), String> {
     if value.len() == 10 {
         let bytes = value.as_bytes();
@@ -739,6 +873,24 @@ mod tests {
             record.validate().unwrap_err(),
             "holiday.date 必须是 YYYY-MM-DD 日期。"
         );
+    }
+
+    #[test]
+    fn holiday_create_request_trims_desktop_boundary_input() {
+        let request = HolidayCreateRequest {
+            holiday_key: " demo-holiday ".to_string(),
+            display_name: " 测试节日 ".to_string(),
+            description: Some(" 说明 ".to_string()),
+            date: "2026-06-23".to_string(),
+            recurring: true,
+            enabled: true,
+            sort_order: 42,
+        };
+        let body = request.to_backend_body().unwrap();
+
+        assert_eq!(body["holidayKey"], "demo-holiday");
+        assert_eq!(body["displayName"], "测试节日");
+        assert_eq!(body["description"], "说明");
     }
 
     fn widget(

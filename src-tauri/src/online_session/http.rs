@@ -92,6 +92,7 @@ fn fetch_remote_business_inner<T: DeserializeOwned>(
         "GET" => agent.get(&url),
         "POST" => agent.post(&url),
         "PUT" => agent.put(&url),
+        "DELETE" => agent.delete(&url),
         other => {
             return Err(RemoteError {
                 status_code: None,

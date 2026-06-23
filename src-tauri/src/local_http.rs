@@ -88,7 +88,7 @@ pub fn http_request(port: u16, request: HttpRequest<'_>) -> Result<HttpResponse,
 }
 
 fn validate_method(method: &str) -> Result<(), String> {
-    if matches!(method, "GET" | "POST" | "PUT") {
+    if matches!(method, "GET" | "POST" | "PUT" | "DELETE") {
         return Ok(());
     }
 

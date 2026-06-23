@@ -9,9 +9,10 @@ mod dto;
 mod local_backend;
 
 pub use dto::{
-    BackendAuthUser, CreateToolRequest, HolidayRecord, RuntimeInfo, TimerPreference,
-    TimerPreferenceSaveRequest, ToolRecord, UserPreference, UserPreferenceSaveRequest,
-    WebAuthLoginRequest, WebAuthPublicSession, WorkbenchLayout,
+    BackendAuthUser, CreateToolRequest, HolidayAdminRecord, HolidayCreateRequest, HolidayRecord,
+    HolidayUpdateRequest, RuntimeInfo, TimerPreference, TimerPreferenceSaveRequest, ToolRecord,
+    UserPreference, UserPreferenceSaveRequest, WebAuthLoginRequest, WebAuthPublicSession,
+    WorkbenchLayout,
 };
 use local_backend::fetch_local_json;
 
@@ -184,6 +185,141 @@ pub fn hdx_holidays_list(
     }
 
     Ok(holidays)
+}
+
+#[tauri::command]
+pub fn hdx_admin_holidays_list(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+) -> Result<Vec<HolidayAdminRecord>, String> {
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let holidays = fetch_local_json::<Vec<HolidayAdminRecord>>(
+            &session,
+            "/api/v1/admin/holidays",
+            "GET",
+            None,
+        )?;
+        for holiday in &holidays {
+            holiday.validate()?;
+        }
+        return Ok(holidays);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let holidays = online_session::fetch_remote_business::<Vec<HolidayAdminRecord>>(
+        &config,
+        &access_token,
+        "/api/v1/admin/holidays",
+        "GET",
+        None,
+    )?;
+
+    for holiday in &holidays {
+        holiday.validate()?;
+    }
+
+    Ok(holidays)
+}
+
+#[tauri::command]
+pub fn hdx_admin_holidays_create(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+    input: HolidayCreateRequest,
+) -> Result<HolidayAdminRecord, String> {
+    let body = input.to_backend_body()?;
+
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let holiday = fetch_local_json::<HolidayAdminRecord>(
+            &session,
+            "/api/v1/admin/holidays",
+            "POST",
+            Some(body),
+        )?;
+        holiday.validate()?;
+        return Ok(holiday);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let holiday = online_session::fetch_remote_business::<HolidayAdminRecord>(
+        &config,
+        &access_token,
+        "/api/v1/admin/holidays",
+        "POST",
+        Some(&body),
+    )?;
+    holiday.validate()?;
+    Ok(holiday)
+}
+
+#[tauri::command]
+pub fn hdx_admin_holidays_update(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+    id: u64,
+    input: HolidayUpdateRequest,
+) -> Result<HolidayAdminRecord, String> {
+    validate_holiday_id(id)?;
+    let body = input.to_backend_body()?;
+    let path = format!("/api/v1/admin/holidays/{id}");
+
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let holiday = fetch_local_json::<HolidayAdminRecord>(&session, &path, "PUT", Some(body))?;
+        holiday.validate()?;
+        return Ok(holiday);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let holiday = online_session::fetch_remote_business::<HolidayAdminRecord>(
+        &config,
+        &access_token,
+        &path,
+        "PUT",
+        Some(&body),
+    )?;
+    holiday.validate()?;
+    Ok(holiday)
+}
+
+#[tauri::command]
+pub fn hdx_admin_holidays_delete(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+    id: u64,
+    version: u32,
+) -> Result<HolidayAdminRecord, String> {
+    validate_holiday_id(id)?;
+    validate_holiday_version(version)?;
+    let path = format!("/api/v1/admin/holidays/{id}?version={version}");
+
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let holiday = fetch_local_json::<HolidayAdminRecord>(&session, &path, "DELETE", None)?;
+        holiday.validate()?;
+        return Ok(holiday);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let holiday = online_session::fetch_remote_business::<HolidayAdminRecord>(
+        &config,
+        &access_token,
+        &path,
+        "DELETE",
+        None,
+    )?;
+    holiday.validate()?;
+    Ok(holiday)
 }
 
 #[tauri::command]
@@ -417,6 +553,22 @@ fn require_local_backend_session(
 fn require_online_config(app: &AppHandle) -> Result<crate::online_config::OnlineConfig, String> {
     online_config::read_app_config(app)?
         .ok_or_else(|| "请先配置 Desktop Online 远端服务地址。".to_string())
+}
+
+fn validate_holiday_id(id: u64) -> Result<(), String> {
+    if id == 0 {
+        return Err("节日 ID 无效。".to_string());
+    }
+
+    Ok(())
+}
+
+fn validate_holiday_version(version: u32) -> Result<(), String> {
+    if version == 0 {
+        return Err("节日版本无效。".to_string());
+    }
+
+    Ok(())
 }
 
 fn online_remote_session(online_session: &OnlineSessionHolder) -> WebAuthPublicSession {
