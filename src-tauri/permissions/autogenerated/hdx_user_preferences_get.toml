@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hdx-user-preferences-get"
+description = "Enables the hdx_user_preferences_get command without any pre-configured scope."
+commands.allow = ["hdx_user_preferences_get"]
+
+[[permission]]
+identifier = "deny-hdx-user-preferences-get"
+description = "Denies the hdx_user_preferences_get command without any pre-configured scope."
+commands.deny = ["hdx_user_preferences_get"]

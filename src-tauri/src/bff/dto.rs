@@ -3,6 +3,15 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+const USER_PREFERENCE_PRIMARY_COLORS: &[&str] = &[
+    "black", "red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky",
+    "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose",
+];
+const USER_PREFERENCE_NEUTRAL_COLORS: &[&str] = &[
+    "slate", "gray", "zinc", "neutral", "stone", "taupe", "mauve", "mist", "olive",
+];
+const USER_PREFERENCE_RADII: &[&str] = &["0", "0.125", "0.25", "0.375", "0.5"];
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BackendAuthUser {
@@ -129,6 +138,46 @@ pub struct TimerPreferencePresetRequest {
     id: String,
     order: u8,
     duration_seconds: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPreference {
+    schema_version: u8,
+    version: u32,
+    locale: String,
+    color_mode: String,
+    theme: UserPreferenceTheme,
+    navigation: UserPreferenceNavigation,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPreferenceSaveRequest {
+    schema_version: u8,
+    version: u32,
+    locale: String,
+    color_mode: String,
+    theme: UserPreferenceTheme,
+    navigation: UserPreferenceNavigation,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPreferenceTheme {
+    primary_mode: String,
+    primary: String,
+    custom_primary: String,
+    neutral_mode: String,
+    neutral: String,
+    custom_neutral: String,
+    radius: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPreferenceNavigation {
+    pinned_item_ids: Vec<String>,
 }
 
 impl WebAuthLoginRequest {
@@ -289,7 +338,12 @@ impl TimerPreferencePreset {
     fn validate(&self) -> Result<(), String> {
         validate_timer_preset_id("timer.preset.id", &self.id)?;
         validate_u8_range("timer.preset.order", self.order, 0, 23)?;
-        validate_u32_range("timer.preset.durationSeconds", self.duration_seconds, 1, 86_400)?;
+        validate_u32_range(
+            "timer.preset.durationSeconds",
+            self.duration_seconds,
+            1,
+            86_400,
+        )?;
         validate_trimmed_text("timer.preset.createdAt", &self.created_at, 1, 80)?;
         Ok(())
     }
@@ -333,8 +387,42 @@ impl TimerPreferencePresetRequest {
     fn validate(&self) -> Result<(), String> {
         validate_timer_preset_id("timer.preset.id", &self.id)?;
         validate_u8_range("timer.preset.order", self.order, 0, 23)?;
-        validate_u32_range("timer.preset.durationSeconds", self.duration_seconds, 1, 86_400)?;
+        validate_u32_range(
+            "timer.preset.durationSeconds",
+            self.duration_seconds,
+            1,
+            86_400,
+        )?;
         Ok(())
+    }
+}
+
+impl UserPreference {
+    pub(super) fn validate(&self) -> Result<(), String> {
+        validate_user_preference(
+            self.schema_version,
+            &self.locale,
+            &self.color_mode,
+            &self.theme,
+            &self.navigation,
+        )
+    }
+}
+
+impl UserPreferenceSaveRequest {
+    pub(super) fn to_backend_body(&self) -> Result<Value, String> {
+        self.validate()?;
+        serde_json::to_value(self).map_err(|error| format!("序列化用户偏好失败：{error}"))
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        validate_user_preference(
+            self.schema_version,
+            &self.locale,
+            &self.color_mode,
+            &self.theme,
+            &self.navigation,
+        )
     }
 }
 
@@ -413,6 +501,118 @@ fn validate_timer_preset_id(name: &str, value: &str) -> Result<(), String> {
     Err(format!("{name} 格式无效。"))
 }
 
+fn validate_user_preference(
+    schema_version: u8,
+    locale: &str,
+    color_mode: &str,
+    theme: &UserPreferenceTheme,
+    navigation: &UserPreferenceNavigation,
+) -> Result<(), String> {
+    if schema_version != 1 {
+        return Err("用户偏好版本不支持。".to_string());
+    }
+
+    validate_one_of("userPreference.locale", locale, &["zh-CN", "en-US"])?;
+    validate_one_of(
+        "userPreference.colorMode",
+        color_mode,
+        &["system", "light", "dark"],
+    )?;
+    validate_user_preference_theme(theme)?;
+    validate_user_preference_navigation(navigation)
+}
+
+fn validate_user_preference_theme(theme: &UserPreferenceTheme) -> Result<(), String> {
+    validate_one_of(
+        "userPreference.theme.primaryMode",
+        &theme.primary_mode,
+        &["preset", "custom"],
+    )?;
+    validate_one_of(
+        "userPreference.theme.primary",
+        &theme.primary,
+        USER_PREFERENCE_PRIMARY_COLORS,
+    )?;
+    validate_hex_color("userPreference.theme.customPrimary", &theme.custom_primary)?;
+    validate_one_of(
+        "userPreference.theme.neutralMode",
+        &theme.neutral_mode,
+        &["preset", "custom"],
+    )?;
+    validate_one_of(
+        "userPreference.theme.neutral",
+        &theme.neutral,
+        USER_PREFERENCE_NEUTRAL_COLORS,
+    )?;
+    validate_hex_color("userPreference.theme.customNeutral", &theme.custom_neutral)?;
+    validate_one_of(
+        "userPreference.theme.radius",
+        &theme.radius,
+        USER_PREFERENCE_RADII,
+    )
+}
+
+fn validate_user_preference_navigation(
+    navigation: &UserPreferenceNavigation,
+) -> Result<(), String> {
+    if navigation.pinned_item_ids.len() > 6 {
+        return Err("顶栏固定菜单数量不能超过 6 个。".to_string());
+    }
+
+    let mut item_ids = HashSet::new();
+
+    for item_id in &navigation.pinned_item_ids {
+        validate_navigation_item_id("userPreference.navigation.pinnedItemId", item_id)?;
+
+        if !item_ids.insert(item_id.as_str()) {
+            return Err("顶栏固定菜单项重复。".to_string());
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_navigation_item_id(name: &str, value: &str) -> Result<(), String> {
+    validate_text(name, value, 1, 80)?;
+
+    let mut chars = value.chars();
+    let first = chars.next().ok_or_else(|| format!("{name} 格式无效。"))?;
+
+    if !(first.is_ascii_lowercase() || first.is_ascii_digit()) {
+        return Err(format!("{name} 格式无效。"));
+    }
+
+    if chars.all(|character| {
+        character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+    }) {
+        return Ok(());
+    }
+
+    Err(format!("{name} 格式无效。"))
+}
+
+fn validate_hex_color(name: &str, value: &str) -> Result<(), String> {
+    if value.len() == 7
+        && value.starts_with('#')
+        && value
+            .chars()
+            .skip(1)
+            .all(|character| character.is_ascii_hexdigit())
+    {
+        return Ok(());
+    }
+
+    Err(format!("{name} 必须是 #RRGGBB 色号。"))
+}
+
+fn validate_one_of(name: &str, value: &str, allowed_values: &[&str]) -> Result<(), String> {
+    if allowed_values.contains(&value) {
+        return Ok(());
+    }
+
+    Err(format!("{name} 不在允许范围内。"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -463,7 +663,20 @@ mod tests {
             ],
         };
 
-        assert_eq!(request.to_backend_body().unwrap_err(), "计时器预设包含重复时长。");
+        assert_eq!(
+            request.to_backend_body().unwrap_err(),
+            "计时器预设包含重复时长。"
+        );
+    }
+
+    #[test]
+    fn user_preference_save_request_rejects_duplicate_navigation_items() {
+        let request = user_preference_request(vec!["timer", "timer"]);
+
+        assert_eq!(
+            request.to_backend_body().unwrap_err(),
+            "顶栏固定菜单项重复。"
+        );
     }
 
     fn widget(
@@ -499,6 +712,27 @@ mod tests {
             id: id.to_string(),
             order,
             duration_seconds,
+        }
+    }
+
+    fn user_preference_request(pinned_item_ids: Vec<&str>) -> UserPreferenceSaveRequest {
+        UserPreferenceSaveRequest {
+            schema_version: 1,
+            version: 1,
+            locale: "zh-CN".to_string(),
+            color_mode: "dark".to_string(),
+            theme: UserPreferenceTheme {
+                primary_mode: "custom".to_string(),
+                primary: "green".to_string(),
+                custom_primary: "#3366ff".to_string(),
+                neutral_mode: "preset".to_string(),
+                neutral: "slate".to_string(),
+                custom_neutral: "#64748b".to_string(),
+                radius: "0.375".to_string(),
+            },
+            navigation: UserPreferenceNavigation {
+                pinned_item_ids: pinned_item_ids.into_iter().map(String::from).collect(),
+            },
         }
     }
 }

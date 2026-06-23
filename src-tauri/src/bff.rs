@@ -9,8 +9,9 @@ mod dto;
 mod local_backend;
 
 pub use dto::{
-    BackendAuthUser, CreateToolRequest, RuntimeInfo, ToolRecord, WebAuthLoginRequest,
-    WebAuthPublicSession, TimerPreference, TimerPreferenceSaveRequest, WorkbenchLayout,
+    BackendAuthUser, CreateToolRequest, RuntimeInfo, TimerPreference, TimerPreferenceSaveRequest,
+    ToolRecord, UserPreference, UserPreferenceSaveRequest, WebAuthLoginRequest,
+    WebAuthPublicSession, WorkbenchLayout,
 };
 use local_backend::fetch_local_json;
 
@@ -221,8 +222,12 @@ pub fn hdx_timer_preferences_get(
 ) -> Result<TimerPreference, String> {
     if flavor::active_flavor().includes_full_backend() {
         let session = require_local_backend_session(&backend_sidecar)?;
-        let preference =
-            fetch_local_json::<TimerPreference>(&session, "/api/v1/timer/preferences", "GET", None)?;
+        let preference = fetch_local_json::<TimerPreference>(
+            &session,
+            "/api/v1/timer/preferences",
+            "GET",
+            None,
+        )?;
         preference.validate()?;
         return Ok(preference);
     }
@@ -267,6 +272,67 @@ pub fn hdx_timer_preferences_save(
         &config,
         &access_token,
         "/api/v1/timer/preferences",
+        "PUT",
+        Some(&body),
+    )?;
+    preference.validate()?;
+    Ok(preference)
+}
+
+#[tauri::command]
+pub fn hdx_user_preferences_get(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+) -> Result<UserPreference, String> {
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let preference =
+            fetch_local_json::<UserPreference>(&session, "/api/v1/user/preferences", "GET", None)?;
+        preference.validate()?;
+        return Ok(preference);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let preference = online_session::fetch_remote_business::<UserPreference>(
+        &config,
+        &access_token,
+        "/api/v1/user/preferences",
+        "GET",
+        None,
+    )?;
+    preference.validate()?;
+    Ok(preference)
+}
+
+#[tauri::command]
+pub fn hdx_user_preferences_save(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+    input: UserPreferenceSaveRequest,
+) -> Result<UserPreference, String> {
+    let body = input.to_backend_body()?;
+
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let preference = fetch_local_json::<UserPreference>(
+            &session,
+            "/api/v1/user/preferences",
+            "PUT",
+            Some(body),
+        )?;
+        preference.validate()?;
+        return Ok(preference);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let preference = online_session::fetch_remote_business::<UserPreference>(
+        &config,
+        &access_token,
+        "/api/v1/user/preferences",
         "PUT",
         Some(&body),
     )?;

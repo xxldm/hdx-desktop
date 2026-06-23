@@ -255,6 +255,18 @@
           "markdownDescription": "Enables the hdx_tools_list command without any pre-configured scope."
         },
         {
+          "description": "Enables the hdx_user_preferences_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-user-preferences-get",
+          "markdownDescription": "Enables the hdx_user_preferences_get command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the hdx_user_preferences_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hdx-user-preferences-save",
+          "markdownDescription": "Enables the hdx_user_preferences_save command without any pre-configured scope."
+        },
+        {
           "description": "Enables the hdx_workbench_layout_get command without any pre-configured scope.",
           "type": "string",
           "const": "allow-hdx-workbench-layout-get",
@@ -343,6 +355,18 @@
           "type": "string",
           "const": "deny-hdx-tools-list",
           "markdownDescription": "Denies the hdx_tools_list command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_user_preferences_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-user-preferences-get",
+          "markdownDescription": "Denies the hdx_user_preferences_get command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hdx_user_preferences_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hdx-user-preferences-save",
+          "markdownDescription": "Denies the hdx_user_preferences_save command without any pre-configured scope."
         },
         {
           "description": "Denies the hdx_workbench_layout_get command without any pre-configured scope.",

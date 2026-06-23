@@ -16,6 +16,8 @@ fn main() {
             "hdx_workbench_layout_save",
             "hdx_timer_preferences_get",
             "hdx_timer_preferences_save",
+            "hdx_user_preferences_get",
+            "hdx_user_preferences_save",
         ]),
     ))
     .expect("生成 Tauri 构建上下文失败。");
