@@ -63,6 +63,19 @@ pub struct ToolRecord {
     updated_at: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HolidayRecord {
+    id: u64,
+    holiday_key: String,
+    display_name: String,
+    #[serde(default)]
+    description: Option<String>,
+    date: String,
+    recurring: bool,
+    sort_order: u32,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateToolRequest {
@@ -205,6 +218,19 @@ impl ToolRecord {
         }
         validate_trimmed_text("tool.createdAt", &self.created_at, 1, 80)?;
         validate_trimmed_text("tool.updatedAt", &self.updated_at, 1, 80)?;
+        Ok(())
+    }
+}
+
+impl HolidayRecord {
+    pub(super) fn validate(&self) -> Result<(), String> {
+        validate_trimmed_text("holiday.holidayKey", &self.holiday_key, 1, 80)?;
+        validate_trimmed_text("holiday.displayName", &self.display_name, 1, 120)?;
+        if let Some(description) = &self.description {
+            validate_text("holiday.description", description, 0, 500)?;
+        }
+        validate_date_text("holiday.date", &self.date)?;
+        validate_u32_range("holiday.sortOrder", self.sort_order, 0, 9_999)?;
         Ok(())
     }
 }
@@ -501,6 +527,24 @@ fn validate_timer_preset_id(name: &str, value: &str) -> Result<(), String> {
     Err(format!("{name} 格式无效。"))
 }
 
+fn validate_date_text(name: &str, value: &str) -> Result<(), String> {
+    if value.len() == 10 {
+        let bytes = value.as_bytes();
+        let valid = bytes[4] == b'-'
+            && bytes[7] == b'-'
+            && bytes
+                .iter()
+                .enumerate()
+                .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit());
+
+        if valid {
+            return Ok(());
+        }
+    }
+
+    Err(format!("{name} 必须是 YYYY-MM-DD 日期。"))
+}
+
 fn validate_user_preference(
     schema_version: u8,
     locale: &str,
@@ -676,6 +720,24 @@ mod tests {
         assert_eq!(
             request.to_backend_body().unwrap_err(),
             "顶栏固定菜单项重复。"
+        );
+    }
+
+    #[test]
+    fn holiday_record_rejects_invalid_date_shape() {
+        let record = HolidayRecord {
+            id: 1,
+            holiday_key: "new-year".to_string(),
+            display_name: "元旦".to_string(),
+            description: None,
+            date: "01-01".to_string(),
+            recurring: true,
+            sort_order: 0,
+        };
+
+        assert_eq!(
+            record.validate().unwrap_err(),
+            "holiday.date 必须是 YYYY-MM-DD 日期。"
         );
     }
 

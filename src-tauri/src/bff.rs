@@ -9,9 +9,9 @@ mod dto;
 mod local_backend;
 
 pub use dto::{
-    BackendAuthUser, CreateToolRequest, RuntimeInfo, TimerPreference, TimerPreferenceSaveRequest,
-    ToolRecord, UserPreference, UserPreferenceSaveRequest, WebAuthLoginRequest,
-    WebAuthPublicSession, WorkbenchLayout,
+    BackendAuthUser, CreateToolRequest, HolidayRecord, RuntimeInfo, TimerPreference,
+    TimerPreferenceSaveRequest, ToolRecord, UserPreference, UserPreferenceSaveRequest,
+    WebAuthLoginRequest, WebAuthPublicSession, WorkbenchLayout,
 };
 use local_backend::fetch_local_json;
 
@@ -151,6 +151,39 @@ pub fn hdx_tools_create(
     )?;
     tool.validate()?;
     Ok(tool)
+}
+
+#[tauri::command]
+pub fn hdx_holidays_list(
+    app: AppHandle,
+    online_session: tauri::State<'_, OnlineSessionHolder>,
+    backend_sidecar: tauri::State<'_, BackendSidecar>,
+) -> Result<Vec<HolidayRecord>, String> {
+    if flavor::active_flavor().includes_full_backend() {
+        let session = require_local_backend_session(&backend_sidecar)?;
+        let holidays =
+            fetch_local_json::<Vec<HolidayRecord>>(&session, "/api/v1/holidays", "GET", None)?;
+        for holiday in &holidays {
+            holiday.validate()?;
+        }
+        return Ok(holidays);
+    }
+
+    let config = require_online_config(&app)?;
+    let access_token = online_session.ensure_access_token(&config)?;
+    let holidays = online_session::fetch_remote_business::<Vec<HolidayRecord>>(
+        &config,
+        &access_token,
+        "/api/v1/holidays",
+        "GET",
+        None,
+    )?;
+
+    for holiday in &holidays {
+        holiday.validate()?;
+    }
+
+    Ok(holidays)
 }
 
 #[tauri::command]

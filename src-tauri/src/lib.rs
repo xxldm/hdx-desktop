@@ -43,6 +43,7 @@ pub fn run() {
             bff::hdx_runtime_info,
             bff::hdx_tools_list,
             bff::hdx_tools_create,
+            bff::hdx_holidays_list,
             bff::hdx_workbench_layout_get,
             bff::hdx_workbench_layout_save,
             bff::hdx_timer_preferences_get,

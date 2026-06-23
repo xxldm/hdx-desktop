@@ -12,6 +12,7 @@ fn main() {
             "hdx_runtime_info",
             "hdx_tools_list",
             "hdx_tools_create",
+            "hdx_holidays_list",
             "hdx_workbench_layout_get",
             "hdx_workbench_layout_save",
             "hdx_timer_preferences_get",

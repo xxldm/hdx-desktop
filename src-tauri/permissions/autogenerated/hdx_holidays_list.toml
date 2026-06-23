@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hdx-holidays-list"
+description = "Enables the hdx_holidays_list command without any pre-configured scope."
+commands.allow = ["hdx_holidays_list"]
+
+[[permission]]
+identifier = "deny-hdx-holidays-list"
+description = "Denies the hdx_holidays_list command without any pre-configured scope."
+commands.deny = ["hdx_holidays_list"]
