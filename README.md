@@ -7,11 +7,11 @@ Desktop 第一阶段设计已由根仓库 `docs/adr/0008-desktop-tauri-windows-l
 - 技术栈采用 Tauri + Rust，第一阶段 Windows + Linux 并列。
 - `apps/desktop` 只维护一套代码，不拆成 Full/Online 两套项目。
 - Full/Online 通过构建 flavor、Tauri 配置变体和安装包内容区分。
-- `HDX Desktop Full` 包含本机后端 sidecar/native exe，仅离线本地模式。
+- `HDX Desktop Full` 包含本机后端 sidecar/native exe，提供本机数据能力，也可以连接已登录服务端和匿名公开来源。
 - `HDX Desktop Online` 不包含 all-in-one，仅在线远程模式。
-- 自启动、通知、deep link、托盘、配置目录和导入导出应抽象为 Windows/Linux 通用 desktop capability。
+- 自启动、通知、deep link、托盘、配置目录和在线迁移应抽象为 Windows/Linux 通用 desktop capability。
 - 用户数据持久化与跨端同步边界见根仓库 `docs/adr/0016-user-data-persistence-and-sync-boundary.md`。
-- Full/Online 备份导入导出边界见根仓库 `docs/adr/0018-desktop-backup-import-export-boundary.md`。
+- Full/Online 多来源和在线迁移边界见根仓库 `docs/adr/0019-client-source-and-online-migration-boundary.md`。
 - 类似壁纸软件的桌面窗口嵌入是 Windows-only wallpaper mode，必须单独做 Win32 spike。
 
 ## 命令
@@ -45,15 +45,15 @@ Desktop 当前没有 Web 端那种部署配置模板。客户端运行配置建�
 - Online flavor 已支持远端地址填写、持久化、连接检查和 Rust BFF 认证转发；access/refresh token 只保存在 Rust 主进程内存中，不返回 WebView。
 - 计时器运行状态属于设备级状态，不跨设备同步；计时器预设和组件配置后续按用户数据事实源处理。
 
-## 备份导入导出
+## 多来源与在线迁移
 
-Full 与 Online 互相搬家只通过用户主动导入导出 `.hdxbak` 备份包，不做自动同步、迁移或合并。
+Full 可以同时拥有本机数据、已登录服务端和匿名公开来源。来源平级，不设主账号/次账号；主导航按业务模块组织，不按来源拆分。
 
-- Full 导出/导入作用于本机后端和本机数据库。
-- Online 导出/导入作用于当前登录账号所在的当前服务端。
-- `.hdxbak` 是 zip 容器，内部使用 `manifest.json`、分领域 `data/*.ndjson`、`checksums.json` 和预留 `attachments/`。
-- 导入时目标端生成新 ID；第一版只做追加导入，不覆盖或删除现有数据。
-- 备份包不导出公开数据、token、会话、密码、系统角色、权限授予记录、公开权限、公开头衔或治理/审核记录。
+- 跨来源不做移动、同步、智能合并或普通内容复制。
+- 本机 -> 服务端：登录目标服务端后上传本机业务数据；迁移成功后清理本机业务数据，并强制生成一条站内收件箱通知留痕。
+- 服务端 -> 本机：登录服务端后把该账号可迁出的个人数据导入本机；每个服务端账号只允许迁出一次，成功后服务端账号不可继续使用。
+- 不提供 `.hdxbak`、离线迁移包、普通备份导出或后端对后端迁移。
+- 迁移不携带登录态、权限授权、公开关系、协作关系或通知投递历史。
 - 本地 `dev:full` / `dev:online` 仍使用本目录 Vite 状态面板，主要用于检查 Tauri flavor、capability 和 sidecar 状态。
 - Windows-only wallpaper mode 只保留 capability 位置，尚未调用 Win32 API。
 
